@@ -4,17 +4,19 @@ Concise state for reloading into a fresh session. Details are in `WORKLIST.md`.
 
 ## State
 
-- Fase 1 (speelbare basis) staat op branch `phase-1-playable-base` (commit `909f793`),
-  gepusht; CI is groen. Nog niet gemerged naar `main`, dus nog niet op GitHub Pages.
-- Lokaal: 53 unit tests en 33 e2e-tests (Chromium-emulatie) slagen.
-- Wacht op beoordeling en expliciete goedkeuring door de gebruiker vóór fase 2.
+- Fase 1 is gemerged naar `main` (PR #1) en door de gebruiker getest op iPhone.
+- Fase 2 (visuele stijl) is gebouwd op `phase-2-visual-assets` en naar `main` gemerged op
+  verzoek van de gebruiker. GitHub Pages staat aan; deploy gaat via `deploy.yml`.
+- Artwork: handgemaakte SVG's in `src/assets/`; muren worden per level gegenereerd door
+  `src/render/walls.ts`; spelerhouding komt uit `src/render/motion.ts`.
+- Wacht op beoordeling door de gebruiker vóór fase 3.
 
 ## Watch out for
 
-- GitHub Pages staat nog uit; de gebruiker moet het zelf aanzetten (Source: GitHub Actions).
 - Vite-`base` is `/DozenDoolhof/` (hoofdlettergevoelig); niet wijzigen.
-- Er is niet getest op echte iOS/WebKit; alleen Chromium met mobiele emulatie.
-- @playwright/test staat vast op 1.56.1 zodat de aanwezige Chromium (build 1194) gebruikt
-  wordt; TypeScript op 6.0.x omdat typescript-eslint 7.x nog niet ondersteunt.
-- De commit-msg-hook (`.githooks/`) moet per clone aangezet worden:
-  `git config core.hooksPath .githooks`.
+- Alleen getest in Chromium met mobiele emulatie, niet op iOS/WebKit.
+- Kleine SVG's worden door Vite als data-URL in de CSS gezet (assetsInlineLimit); dat is
+  bewust zo gelaten.
+- De HUD moet op 320 px breed passen; de e2e-layouttest controleert dat.
+- @playwright/test vast op 1.56.1 (aanwezige Chromium), TypeScript op 6.0.x.
+- De commit-msg-hook (`.githooks/`) per clone aanzetten: `git config core.hooksPath .githooks`.

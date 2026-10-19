@@ -4,10 +4,11 @@ Een vrolijke, kindvriendelijke Sokoban-achtige puzzelgame voor iPhone en iPad, g
 een kind van zes jaar. Duw de dozen naar de blauwe doelen. Er is geen tijdsdruk en je hoeft
 niet te kunnen lezen om te spelen.
 
-> **Status: fase 1 (speelbare basis).** De vormgeving is tijdelijk: eenvoudige CSS-vormen in
-> de kleuren van het moodboard. De definitieve graphics volgen in fase 2.
+> **Status: fase 2 (visuele stijl).** Glanzende cartoonstijl met een doorlopende bakstenen
+> rand, stenen vloertegels, houten kisten, lichtgevende doelen en een geanimeerd
+> bouwvakkertje. Volgende fase: touchbediening en kindvriendelijke UX.
 
-Speel online (zodra GitHub Pages aan staat): <https://hopeisdope.github.io/DozenDoolhof/>
+Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 
 ## Spelen
 
@@ -57,7 +58,8 @@ Eenmalig Chromium installeren: `npx playwright install chromium`.
 src/
   engine/       pure spelregels, zonder DOM (state, move, history/undo)
   levels/       levelparser, leveldefinities, LURD-oplossingen
-  render/       DOM-weergave van het bord
+  assets/       SVG-artwork: tegels, kisten, bouwvakkertje, UI
+  render/       DOM-weergave van het bord, muur-autotiling, spelerhouding
   ui/           spelscherm, swipe- en toetsenbordinvoer
   styles/       CSS
   main.ts       startpunt
