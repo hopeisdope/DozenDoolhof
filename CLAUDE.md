@@ -42,7 +42,8 @@ the hook in `.githooks/commit-msg` enforces this once enabled with
     "niets veranderd"). Herstart is zelf ongedaan te maken.
 - `src/levels/`: parser voor het Sokoban-tekstformaat; `definitions.ts` bundelt de niveaus
   (`TIERS`: Makkelijk, Gemiddeld, Moeilijk) uit `tiers/easy.ts`, `medium.ts` en `hard.ts`,
-  elk twintig levels met een bekende LURD-oplossing.
+  elk veertig levels met een bekende LURD-oplossing. ID's (`easy-01`…`easy-40`) zijn stabiel
+  en sleutel van de voortgang; de volgorde in het bestand is de speelvolgorde.
 - `src/solver/solver.ts`: BFS-oplosser over duwen (fewest pushes), met dode-cel-snoei.
   Gebruikt door de tests; bruikbaar voor hints in een latere fase.
 - `src/render/board.ts`: vloer- en doeltegels in een CSS-grid, daarboven één muurlaag (SVG),
@@ -56,7 +57,8 @@ the hook in `.githooks/commit-msg` enforces this once enabled with
 - `src/assets/`: handgemaakte SVG's. Tegels en kisten zijn CSS-achtergronden; `player.svg`
   wordt inline geladen (`?raw`) zodat CSS de onderdelen kan animeren (`.hero__*`-klassen).
 - `src/ui/`: `level-select.ts` is het startscherm (niveau en level kiezen), `game-screen.ts`
-  het spelscherm, `progress.ts` de voortgang (alleen in het geheugen), `input.ts` swipe
+  het spelscherm, `progress.ts` de voortgang (sterren per level-ID in `localStorage`, versie +
+  migraties, valt terug op geheugen), `input.ts` swipe
   (pointer events, één zet per gebaar) en toetsenbord, `icons.ts` gedeelde iconen.
 
 Houd de engine vrij van DOM-code; de weergave mag later vervangen worden (bijvoorbeeld door
@@ -109,4 +111,6 @@ npm run format         # Prettier toepassen
 - Een e2e-fout laat een trace achter in `test-results/`: `npx playwright show-trace <pad>/trace.zip`.
   In CI staat het Playwright-rapport als artifact `playwright-report` bij een mislukte run.
 - Een level direct openen: `?tier=easy|medium|hard&level=N` achter de URL.
-- TODO: vanaf fase 5 staat de voortgang in `localStorage`; beschrijf dan hoe je die bekijkt en wist.
+- Voortgang staat in `localStorage` onder `dozendoolhof.progress`. Bekijken: DevTools →
+  Application → Local Storage, of `localStorage.getItem('dozendoolhof.progress')`. Wissen: de
+  prullenbakknop op het startscherm of `localStorage.removeItem('dozendoolhof.progress')`.

@@ -13,7 +13,7 @@ import type { Tier } from '../levels/definitions';
 import { BoardView } from '../render/board';
 import { ICONS, icon, iconButton, starRow } from './icons';
 import { bindKeyboard, bindSwipe } from './input';
-import type { Progress } from './progress';
+import { starsFor, type Progress, type Stars } from './progress';
 
 /**
  * The play screen: HUD, board, level/undo/restart controls and the "level complete"
@@ -114,7 +114,7 @@ export class GameScreen {
     this.overlay.setAttribute('aria-labelledby', 'win-title');
     this.overlay.innerHTML = `
       <div class="overlay__card">
-        <img class="overlay__star" src="${starUrl}" alt="" />
+        <div class="overlay__stars" data-testid="win-stars"></div>
         <h2 class="overlay__title" id="win-title">Gelukt!</h2>
         <p class="overlay__moves"></p>
       </div>`;
@@ -164,9 +164,16 @@ export class GameScreen {
     this.render();
   }
 
+  /** Stars for the current win, measured against the level's known solution. */
+  private get earnedStars(): Stars {
+    const definition = this.tier.definitions[this.levelIndex];
+    const par = definition ? definition.solution.length : this.game.state.moves;
+    return starsFor(this.game.state.moves, par);
+  }
+
   private render(): void {
     const solved = isGameSolved(this.game);
-    if (solved) this.progress.markCompleted(this.currentLevel.id);
+    if (solved) this.progress.complete(this.currentLevel.id, this.earnedStars);
 
     this.moves.textContent = `Zetten: ${this.game.state.moves}`;
     this.undoButton.disabled = !canUndo(this.game) || solved;
@@ -179,6 +186,14 @@ export class GameScreen {
     this.nextButton.innerHTML = icon(this.isLastInTier ? ICONS.levels : ICONS.next);
     const movesText = this.overlay.querySelector('.overlay__moves');
     if (movesText) movesText.textContent = `${this.game.state.moves} zetten`;
+    const stars = this.overlay.querySelector<HTMLElement>('.overlay__stars');
+    if (stars && solved) {
+      const earned = this.earnedStars;
+      stars.dataset.stars = String(earned);
+      stars.setAttribute('aria-label', `${earned} van de 3 sterren`);
+      stars.setAttribute('role', 'img');
+      stars.innerHTML = starRow(earned, starUrl, 3);
+    }
 
     if (solved && this.overlay.hidden) {
       const level = this.currentLevel;

@@ -4,9 +4,10 @@ Een vrolijke, kindvriendelijke Sokoban-achtige puzzelgame voor iPhone en iPad, g
 een kind van zes jaar. Duw de dozen naar de blauwe doelen. Er is geen tijdsdruk en je hoeft
 niet te kunnen lezen om te spelen.
 
-> **Status: levelstructuur.** 60 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van
-> elk twintig levels, direct te kiezen vanaf het startscherm, zonder tutorial. Glanzende
-> cartoonstijl met een geanimeerd bouwvakkertje. Voortgang wordt nog niet bewaard na herladen.
+> **Status: fase 4.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
+> veertig levels, direct te kiezen vanaf het startscherm, zonder tutorial. Glanzende
+> cartoonstijl met een geanimeerd bouwvakkertje. Gehaalde levels en sterren blijven bewaard
+> in de browser (localStorage).
 
 Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 
@@ -20,9 +21,31 @@ Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 | Volgende level   | Groene pijlknop na "Gelukt!"                   | Enter            |
 | Naar de levels   | Knop met de vier vakjes                        | Escape           |
 
-Het startscherm toont de drie niveaus en de twintig levels van het gekozen niveau. Een gehaald
-level krijgt een ster (alleen tijdens dit bezoek). Een level direct openen kan met
-`?tier=medium&level=3` achter de URL (`tier` is `easy`, `medium` of `hard`).
+Het startscherm toont de drie niveaus en de veertig levels van het gekozen niveau (op een
+telefoon scrolt alleen het levelraster). Een gehaald level krijgt één tot drie sterren: drie
+voor hoogstens zoveel zetten als de bekende oplossing, twee voor tot anderhalf keer zoveel,
+anders één. Het beste resultaat blijft staan; een slechtere herhaling overschrijft het niet.
+Een level direct openen kan met `?tier=medium&level=3` achter de URL (`tier` is `easy`,
+`medium` of `hard`, `level` is de positie in het niveau).
+
+### Voortgang
+
+De voortgang staat in `localStorage` onder de sleutel `dozendoolhof.progress`, per stabiele
+level-ID (bijvoorbeeld `easy-07`) en met een versienummer:
+
+```json
+{ "version": 1, "bestStars": { "easy-01": 3, "medium-12": 2 } }
+```
+
+Een level telt als gehaald als het een sterrenwaarde heeft. Beschadigde of ongeldige gegevens
+laten de game niet vastlopen: ongeldige regels worden overgeslagen, onleesbare opslag geldt
+als lege voortgang. Gegevens van een nieuwere versie worden nooit overschreven. Zonder
+werkende `localStorage` (bijvoorbeeld geblokkeerd) speelt de game gewoon en meldt het
+startscherm dat de voortgang alleen tijdelijk wordt bewaard.
+
+Wissen: de grijze prullenbakknop onderaan het startscherm, met een bevestigingsstap.
+Bekijken of wissen kan ook in DevTools (Application → Local Storage) of in de console met
+`localStorage.getItem('dozendoolhof.progress')` en `localStorage.removeItem('dozendoolhof.progress')`.
 
 ## Lokaal draaien
 
@@ -64,12 +87,13 @@ src/
   solver/       Sokoban-oplosser (valideert levels, meet moeilijkheid)
   assets/       SVG-artwork: tegels, kisten, bouwvakkertje, UI
   render/       DOM-weergave van het bord, muur-autotiling, spelerhouding
-  ui/           spelscherm, swipe- en toetsenbordinvoer
+  ui/           startscherm, spelscherm, voortgang (localStorage), swipe en toetsenbord
   styles/       CSS
   main.ts       startpunt
 tests/
   engine/       unit tests voor de spelregels
-  levels/       unit tests voor parser en alle 60 levels
+  levels/       unit tests voor parser en alle 120 levels
+  ui/           unit tests voor voortgang (opslag, migratie, beschadigde data)
   solver/       unit tests voor de oplosser
   e2e/          Playwright-tests
 ```
@@ -89,7 +113,16 @@ standaard Sokoban-tekstformaat (`src/levels/definitions.ts` bundelt ze tot nivea
 Elk level heeft een bekende oplossing in LURD-notatie (`u d l r` = lopen, `U D L R` =
 duwen). De tests spelen die oplossing na en laten de oplosser (`src/solver/solver.ts`) elk
 level opnieuw oplossen. Ze controleren ook dat er geen dubbele (gedraaide of gespiegelde)
-puzzels zijn, dat borden hoogstens 10×10 zijn en dat de niveaus in moeilijkheid oplopen.
+puzzels zijn, ook niet met dezelfde (gedraaide of gespiegelde) oplossing in een andere kamer,
+dat borden hoogstens 10×10 zijn en dat de moeilijkheid tussen en binnen de niveaus oploopt.
+
+Level-ID's zijn stabiel en de voortgang hangt eraan: verander of hergebruik nooit een ID. De
+positie in het niveau mag wel veranderen. `easy-01` t/m `easy-20` zijn de oorspronkelijke
+levels; `easy-21` t/m `easy-40` (en zo ook voor `medium` en `hard`) zijn in fase 4 toegevoegd
+en staan ertussen, zodat de moeilijkheid geleidelijk oploopt.
+
+Wijzigt het opslagformaat ooit, verhoog dan `STORAGE_VERSION` in `src/ui/progress.ts` en voeg
+een stap toe aan `MIGRATIONS` (oude versie → nieuwe versie), met een test.
 
 ## Publiceren op GitHub Pages
 

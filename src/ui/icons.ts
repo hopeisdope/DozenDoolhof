@@ -3,6 +3,10 @@ export const ICONS = {
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   restart: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
   next: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  trash:
+    '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6"/>' +
+    '<path d="M14 11v6"/>',
+  close: '<path d="M6 6l12 12"/><path d="M18 6 6 18"/>',
   levels:
     '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/>' +
     '<rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>',
@@ -25,7 +29,13 @@ export function iconButton(className: string, label: string, iconPaths: string):
   return element;
 }
 
-/** A row of small filled stars, used to show a tier's difficulty without text. */
-export function starRow(count: number, starUrl: string): string {
-  return Array.from({ length: count }, () => `<img src="${starUrl}" alt="" />`).join('');
+/**
+ * A row of small stars, used to show a tier's difficulty or a level's result without
+ * text. With `outOf`, the stars beyond `count` are drawn as empty slots.
+ */
+export function starRow(count: number, starUrl: string, outOf = count): string {
+  return Array.from(
+    { length: outOf },
+    (_, index) => `<img src="${starUrl}" alt=""${index < count ? '' : ' class="is-empty"'} />`,
+  ).join('');
 }

@@ -2,12 +2,15 @@ import './styles/main.css';
 import { TIERS, type Tier } from './levels/definitions';
 import { GameScreen } from './ui/game-screen';
 import { LevelSelect } from './ui/level-select';
-import { Progress } from './ui/progress';
+import { browserStorage, Progress } from './ui/progress';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (!root) throw new Error('Missing #app element');
 
-const progress = new Progress();
+const progress = new Progress(browserStorage());
+if (!progress.persistent) {
+  console.warn('Dozendoolhof: localStorage is unavailable; progress is kept in memory only.');
+}
 
 function showSelect(tier: Tier): void {
   select.selectTier(Math.max(TIERS.indexOf(tier), 0));
