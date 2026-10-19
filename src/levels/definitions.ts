@@ -1,5 +1,8 @@
 import type { Level } from '../engine/state';
 import { parseLevel } from './parser';
+import { EASY_LEVELS } from './tiers/easy';
+import { HARD_LEVELS } from './tiers/hard';
+import { MEDIUM_LEVELS } from './tiers/medium';
 
 export interface LevelDefinition {
   readonly id: string;
@@ -12,72 +15,38 @@ export interface LevelDefinition {
   readonly solution: string;
 }
 
-/** Temporary test levels for phase 1, in increasing difficulty. */
-export const LEVEL_DEFINITIONS: readonly LevelDefinition[] = [
-  {
-    id: 'test-1',
-    name: 'Eerste duw',
-    map: `
-#######
-#     #
-#@ $ .#
-#     #
-#######`,
-    solution: 'rRR',
-  },
-  {
-    id: 'test-2',
-    name: 'Om de hoek',
-    map: `
-######
-#@   #
-# $  #
-#    #
-#   .#
-######`,
-    solution: 'dRRurDD',
-  },
-  {
-    id: 'test-3',
-    name: 'Twee dozen',
-    map: `
-#######
-#     #
-# $ $ #
-#  @  #
-# . . #
-#######`,
-    solution: 'uulDDuurrDD',
-  },
-  {
-    id: 'test-4',
-    name: 'Kronkelpad',
-    map: `
-  ####
-###  #
-#   $#
-# #. ##
-# .$  #
-#  @  #
-#######`,
-    solution: 'ruLuuurDDlddrruLdlU',
-  },
-  {
-    id: 'test-5',
-    name: 'Doolhofje',
-    map: `
- #####
- #   ###
- # $   #
-## # # #
-#  .@  #
-# $  ###
-#  . #
-######`,
-    solution: 'llDurruuLulDDDlddRUluR',
-  },
+export type TierId = 'easy' | 'medium' | 'hard';
+
+export interface TierDefinition {
+  readonly id: TierId;
+  /** Dutch name shown in the level selection. */
+  readonly name: string;
+  /** 1–3, shown as stars so the tier can be recognised without reading. */
+  readonly stars: number;
+  readonly levels: readonly LevelDefinition[];
+}
+
+export interface Tier extends Omit<TierDefinition, 'levels'> {
+  readonly definitions: readonly LevelDefinition[];
+  readonly levels: readonly Level[];
+}
+
+/** Three difficulty tiers of twenty levels each, all available from the start. */
+export const TIER_DEFINITIONS: readonly TierDefinition[] = [
+  { id: 'easy', name: 'Makkelijk', stars: 1, levels: EASY_LEVELS },
+  { id: 'medium', name: 'Gemiddeld', stars: 2, levels: MEDIUM_LEVELS },
+  { id: 'hard', name: 'Moeilijk', stars: 3, levels: HARD_LEVELS },
 ];
 
-export const LEVELS: readonly Level[] = LEVEL_DEFINITIONS.map((definition) =>
-  parseLevel(definition.map, definition),
+export const TIERS: readonly Tier[] = TIER_DEFINITIONS.map(({ levels, ...tier }) => ({
+  ...tier,
+  definitions: levels,
+  levels: levels.map((definition) => parseLevel(definition.map, definition)),
+}));
+
+/** All level definitions in play order: easy, then medium, then hard. */
+export const LEVEL_DEFINITIONS: readonly LevelDefinition[] = TIERS.flatMap(
+  (tier) => tier.definitions,
 );
+
+export const LEVELS: readonly Level[] = TIERS.flatMap((tier) => tier.levels);

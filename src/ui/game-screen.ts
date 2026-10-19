@@ -1,3 +1,4 @@
+import starUrl from '../assets/ui/star.svg';
 import {
   canUndo,
   createGame,
@@ -8,74 +9,83 @@ import {
   type Game,
 } from '../engine/history';
 import type { Direction, Level } from '../engine/state';
-import starUrl from '../assets/ui/star.svg';
+import type { Tier } from '../levels/definitions';
 import { BoardView } from '../render/board';
+import { ICONS, icon, iconButton, starRow } from './icons';
 import { bindKeyboard, bindSwipe } from './input';
-
-const ICONS = {
-  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
-  restart: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
-  next: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
-};
-
-/** White icon with a thick dark outline, drawn as two stacked strokes. */
-function icon(paths: string): string {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round"
-    stroke-linejoin="round"><g stroke="#3b1d0e" stroke-width="6.5">${paths}</g>
-    <g stroke="currentColor" stroke-width="3">${paths}</g></svg>`;
-}
-
-function button(className: string, label: string, iconPaths: string): HTMLButtonElement {
-  const element = document.createElement('button');
-  element.type = 'button';
-  element.className = `button ${className}`;
-  element.setAttribute('aria-label', label);
-  element.title = label;
-  element.innerHTML = icon(iconPaths);
-  return element;
-}
+import type { Progress } from './progress';
 
 /**
- * The play screen: HUD, board, undo/restart controls and the "level complete"
- * overlay. Owns the current `Game` and re-renders after every change.
+ * The play screen: HUD, board, level/undo/restart controls and the "level complete"
+ * overlay. Owns the current `Game` and re-renders after every change. One instance
+ * is reused for every level; `open()` switches levels.
  */
 export class GameScreen {
+  readonly element = document.createElement('section');
   private game!: Game;
   private board!: BoardView;
-  private readonly completed = new Set<string>();
+  private tier!: Tier;
+  private levelIndex = 0;
 
   private readonly title = document.createElement('h1');
+  private readonly tierBadge = document.createElement('p');
   private readonly moves = document.createElement('p');
-  private readonly progress = document.createElement('ol');
   private readonly stage = document.createElement('main');
-  private readonly undoButton = button('button--undo', 'Ongedaan maken', ICONS.undo);
-  private readonly restartButton = button('button--restart', 'Opnieuw beginnen', ICONS.restart);
+  private readonly levelsButton = iconButton('button--levels', 'Naar de levels', ICONS.levels);
+  private readonly undoButton = iconButton('button--undo', 'Ongedaan maken', ICONS.undo);
+  private readonly restartButton = iconButton('button--restart', 'Opnieuw beginnen', ICONS.restart);
   private readonly overlay = document.createElement('div');
-  private readonly nextButton = button('button--next', 'Volgende level', ICONS.next);
+  private readonly nextButton = iconButton('button--next', 'Volgende level', ICONS.next);
 
   constructor(
-    private readonly root: HTMLElement,
-    private readonly levels: readonly Level[],
-    private levelIndex = 0,
+    private readonly progress: Progress,
+    private readonly onExit: (tier: Tier) => void,
   ) {
+    this.element.className = 'screen game';
+    this.element.hidden = true;
     this.build();
-    this.showLevel(levelIndex);
 
     bindSwipe(this.stage, (direction) => this.move(direction));
     bindKeyboard(window, {
-      onDirection: (direction) => this.move(direction),
-      onUndo: () => this.undo(),
-      onRestart: () => this.restart(),
+      onDirection: (direction) => this.active && this.move(direction),
+      onUndo: () => this.active && this.undo(),
+      onRestart: () => this.active && this.restart(),
       onConfirm: () => {
-        if (isGameSolved(this.game)) this.next();
+        if (this.active && isGameSolved(this.game)) this.next();
       },
+      onBack: () => this.active && this.exit(),
     });
   }
 
+  /** Starts level `levelIndex` (0-based) of `tier`. */
+  open(tier: Tier, levelIndex: number): void {
+    this.tier = tier;
+    this.levelIndex = levelIndex;
+    this.game = createGame(this.currentLevel);
+    this.board = new BoardView(this.currentLevel);
+    this.stage.replaceChildren(this.board.element);
+    this.title.textContent = `Level ${levelIndex + 1}`;
+    this.title.title = this.currentLevel.name;
+    this.tierBadge.className = `hud__tier hud__tier--${tier.id}`;
+    this.tierBadge.setAttribute('aria-label', tier.name);
+    this.tierBadge.innerHTML = starRow(tier.stars, starUrl);
+    this.overlay.hidden = true;
+    this.element.hidden = false;
+    this.render();
+  }
+
+  private get active(): boolean {
+    return !this.element.hidden;
+  }
+
   private get currentLevel(): Level {
-    const level = this.levels[this.levelIndex];
+    const level = this.tier.levels[this.levelIndex];
     if (!level) throw new Error(`No level at index ${this.levelIndex}`);
     return level;
+  }
+
+  private get isLastInTier(): boolean {
+    return this.levelIndex === this.tier.levels.length - 1;
   }
 
   private build(): void {
@@ -84,16 +94,15 @@ export class GameScreen {
     this.title.className = 'hud__title';
     this.moves.className = 'hud__moves';
     this.moves.dataset.testid = 'moves';
-    this.progress.className = 'hud__progress';
-    this.progress.setAttribute('aria-label', 'Voortgang');
-    hud.append(this.title, this.progress, this.moves);
+    hud.append(this.title, this.tierBadge, this.moves);
 
     this.stage.className = 'stage';
 
     const controls = document.createElement('nav');
     controls.className = 'controls';
     controls.setAttribute('aria-label', 'Bediening');
-    controls.append(this.undoButton, this.restartButton);
+    controls.append(this.levelsButton, this.undoButton, this.restartButton);
+    this.levelsButton.addEventListener('click', () => this.exit());
     this.undoButton.addEventListener('click', () => this.undo());
     this.restartButton.addEventListener('click', () => this.restart());
 
@@ -112,18 +121,7 @@ export class GameScreen {
     this.overlay.querySelector('.overlay__card')?.append(this.nextButton);
     this.nextButton.addEventListener('click', () => this.next());
 
-    this.root.replaceChildren(hud, this.stage, controls, this.overlay);
-  }
-
-  private showLevel(index: number): void {
-    this.levelIndex = index;
-    this.game = createGame(this.currentLevel);
-    this.board = new BoardView(this.currentLevel);
-    this.stage.replaceChildren(this.board.element);
-    this.title.textContent = `Level ${index + 1}`;
-    this.title.title = this.currentLevel.name;
-    this.overlay.hidden = true;
-    this.render();
+    this.element.append(hud, this.stage, controls, this.overlay);
   }
 
   private move(direction: Direction): void {
@@ -146,9 +144,17 @@ export class GameScreen {
     this.setGame(restart(this.game), false);
   }
 
+  /** After a win: the next level of the tier, or back to the level overview. */
   private next(): void {
-    if (!isGameSolved(this.game)) return;
-    this.showLevel((this.levelIndex + 1) % this.levels.length);
+    if (!this.active || !isGameSolved(this.game)) return;
+    if (this.isLastInTier) this.exit();
+    else this.open(this.tier, this.levelIndex + 1);
+  }
+
+  private exit(): void {
+    this.element.hidden = true;
+    this.overlay.hidden = true;
+    this.onExit(this.tier);
   }
 
   private setGame(game: Game, animate: boolean): void {
@@ -160,33 +166,25 @@ export class GameScreen {
 
   private render(): void {
     const solved = isGameSolved(this.game);
-    if (solved) this.completed.add(this.currentLevel.id);
+    if (solved) this.progress.markCompleted(this.currentLevel.id);
 
     this.moves.textContent = `Zetten: ${this.game.state.moves}`;
     this.undoButton.disabled = !canUndo(this.game) || solved;
     this.restartButton.disabled = this.game.state === this.currentLevel.start || solved;
     this.board.element.dataset.solved = String(solved);
 
-    this.progress.replaceChildren(
-      ...this.levels.map((level, index) => {
-        const dot = document.createElement('li');
-        dot.className = 'hud__dot';
-        dot.classList.toggle('is-current', index === this.levelIndex);
-        dot.classList.toggle('is-done', this.completed.has(level.id));
-        return dot;
-      }),
-    );
-
-    const isLast = this.levelIndex === this.levels.length - 1;
-    this.nextButton.setAttribute('aria-label', isLast ? 'Opnieuw vanaf level 1' : 'Volgende level');
-    this.nextButton.title = this.nextButton.getAttribute('aria-label') ?? '';
+    const label = this.isLastInTier ? 'Terug naar de levels' : 'Volgende level';
+    this.nextButton.setAttribute('aria-label', label);
+    this.nextButton.title = label;
+    this.nextButton.innerHTML = icon(this.isLastInTier ? ICONS.levels : ICONS.next);
     const movesText = this.overlay.querySelector('.overlay__moves');
     if (movesText) movesText.textContent = `${this.game.state.moves} zetten`;
 
     if (solved && this.overlay.hidden) {
+      const level = this.currentLevel;
       // Let the final push animation finish before celebrating.
       window.setTimeout(() => {
-        if (!isGameSolved(this.game)) return;
+        if (!isGameSolved(this.game) || this.currentLevel !== level || !this.active) return;
         this.overlay.hidden = false;
         this.nextButton.focus();
       }, 250);

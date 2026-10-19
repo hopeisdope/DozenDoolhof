@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { LEVEL_DEFINITIONS } from '../../src/levels/definitions';
+import { TIERS } from '../../src/levels/definitions';
 
 const ARROW_KEYS: Record<string, string> = {
   u: 'ArrowUp',
@@ -14,23 +14,86 @@ async function playSolution(page: Page, solution: string): Promise<void> {
   }
 }
 
-function solutionOf(index: number): string {
-  return LEVEL_DEFINITIONS[index]!.solution;
+function solutionOf(tierIndex: number, levelIndex: number): string {
+  return TIERS[tierIndex]!.definitions[levelIndex]!.solution;
 }
+
+const EASY_1 = './?tier=easy&level=1';
 
 const moves = (page: Page) => page.getByTestId('moves');
 const player = (page: Page) => page.getByTestId('player');
 const overlay = (page: Page) => page.getByTestId('win-overlay');
 
+test.describe('level selection', () => {
+  const select = (page: Page) => page.getByTestId('level-select');
+  const levelButtons = (page: Page) => page.getByTestId('level-button');
+
+  test('starts at the level selection with three tiers of twenty levels', async ({ page }) => {
+    await page.goto('./');
+    await expect(select(page)).toBeVisible();
+    await expect(page.getByRole('tab')).toHaveCount(3);
+    for (const tier of TIERS) {
+      await page.getByRole('tab', { name: new RegExp(tier.name) }).click();
+      await expect(levelButtons(page)).toHaveCount(20);
+      await expect(levelButtons(page).first()).toHaveAccessibleName(`Level 1, ${tier.name}`);
+    }
+  });
+
+  test('opens a level from every tier and goes back with the levels button', async ({ page }) => {
+    await page.goto('./');
+    for (const tier of TIERS) {
+      await page.getByRole('tab', { name: new RegExp(tier.name) }).click();
+      await page.getByRole('button', { name: `Level 5, ${tier.name}` }).click();
+      await expect(page.getByRole('heading', { name: 'Level 5' })).toBeVisible();
+      await expect(page.getByLabel(tier.name, { exact: true })).toBeVisible();
+      await expect(page.getByTestId('board')).toBeVisible();
+      await page.getByRole('button', { name: 'Naar de levels' }).click();
+      await expect(select(page)).toBeVisible();
+      await expect(page.getByRole('tab', { name: new RegExp(tier.name) })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+    }
+  });
+
+  test('marks a solved level and keeps play working after returning', async ({ page }) => {
+    await page.goto('./');
+    await levelButtons(page).first().click();
+    await expect(player(page)).toHaveAttribute('data-facing', 'down');
+    // Level 1 of Makkelijk: three steps to the right solve it.
+    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+    await expect(overlay(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Volgende level' }).click();
+    await expect(page.getByRole('heading', { name: 'Level 2' })).toBeVisible();
+    await page.getByRole('button', { name: 'Naar de levels' }).click();
+    await expect(page.getByRole('button', { name: 'Level 1, Makkelijk, gehaald' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Makkelijk/ })).toContainText('1/20');
+  });
+
+  test('the level grid fits the screen without scrolling', async ({ page }) => {
+    await page.goto('./');
+    for (const tier of TIERS) {
+      await page.getByRole('tab', { name: new RegExp(tier.name) }).click();
+      await expect(levelButtons(page).last()).toBeInViewport({ ratio: 1 });
+      await expect(levelButtons(page).first()).toBeInViewport({ ratio: 1 });
+      const box = (await levelButtons(page).first().boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(44);
+    }
+    for (const tab of await page.getByRole('tab').all()) {
+      await expect(tab).toBeInViewport({ ratio: 1 });
+    }
+  });
+});
+
 test.describe('keyboard play (desktop)', () => {
   test.skip(({ isMobile }) => isMobile, 'keyboard tests run on the desktop project');
 
   test('plays level 1 to the win screen and continues to level 2', async ({ page }) => {
-    await page.goto('./');
+    await page.goto(EASY_1);
     await expect(page.getByRole('heading', { name: 'Level 1' })).toBeVisible();
     await expect(overlay(page)).toBeHidden();
 
-    await playSolution(page, solutionOf(0));
+    await playSolution(page, solutionOf(0, 0));
 
     await expect(overlay(page)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Gelukt!' })).toBeVisible();
@@ -43,20 +106,29 @@ test.describe('keyboard play (desktop)', () => {
     await expect(moves(page)).toHaveText('Zetten: 0');
   });
 
-  test('plays through every level', async ({ page }) => {
-    await page.goto('./');
-    for (const [index, definition] of LEVEL_DEFINITIONS.entries()) {
-      await expect(page.getByRole('heading', { name: `Level ${index + 1}` })).toBeVisible();
-      await playSolution(page, definition.solution);
-      await expect(overlay(page)).toBeVisible();
-      await page.keyboard.press('Enter');
-    }
-    // After the last level the game starts again at level 1.
-    await expect(page.getByRole('heading', { name: 'Level 1' })).toBeVisible();
-  });
+  for (const [tierIndex, tier] of TIERS.entries()) {
+    test(`plays through all ${tier.levels.length} levels of ${tier.name}`, async ({ page }) => {
+      test.setTimeout(120_000);
+      await page.goto(`./?tier=${tier.id}&level=1`);
+      for (let index = 0; index < tier.levels.length; index++) {
+        await expect(page.getByRole('heading', { name: `Level ${index + 1}` })).toBeVisible();
+        await playSolution(page, solutionOf(tierIndex, index));
+        await expect(overlay(page)).toBeVisible();
+        await page.keyboard.press('Enter');
+      }
+      // After the last level of a tier the game returns to the level selection,
+      // with that tier selected and every level marked as completed.
+      await expect(page.getByTestId('level-select')).toBeVisible();
+      await expect(page.getByRole('tab', { name: new RegExp(tier.name) })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      await expect(page.locator('.level-button.is-done')).toHaveCount(tier.levels.length);
+    });
+  }
 
   test('a blocked move changes nothing', async ({ page }) => {
-    await page.goto('./');
+    await page.goto(EASY_1);
     const x = await player(page).getAttribute('data-x');
     await page.keyboard.press('ArrowLeft'); // wall in level 1
     await expect(moves(page)).toHaveText('Zetten: 0');
@@ -67,7 +139,7 @@ test.describe('keyboard play (desktop)', () => {
   test('the renderer follows the game: facing, push pose, filled goal and walls', async ({
     page,
   }) => {
-    await page.goto('./');
+    await page.goto(EASY_1);
     const board = page.getByTestId('board');
     await expect(board.locator('svg.board__walls path').first()).toBeAttached();
     await expect(player(page)).toHaveAttribute('data-facing', 'down');
@@ -89,8 +161,8 @@ test.describe('keyboard play (desktop)', () => {
   });
 
   test('undo and restart buttons restore earlier states', async ({ page }) => {
-    await page.goto('./?level=2');
-    await expect(page.getByRole('heading', { name: 'Level 2' })).toBeVisible();
+    await page.goto('./?tier=easy&level=10'); // "Om de hoek"
+    await expect(page.getByRole('heading', { name: 'Level 10' })).toBeVisible();
     const box = page.getByTestId('box');
     const startBox = { x: await box.getAttribute('data-x'), y: await box.getAttribute('data-y') };
 
@@ -138,7 +210,7 @@ test.describe('touch play (mobile emulation)', () => {
   }
 
   test('one long swipe makes exactly one move and the page never scrolls', async ({ page }) => {
-    await page.goto('./');
+    await page.goto(EASY_1);
     await swipe(page, 0, 250); // long swipe down
     await expect(moves(page)).toHaveText('Zetten: 1');
     await expect(player(page)).toHaveAttribute('data-y', '3');
@@ -146,7 +218,7 @@ test.describe('touch play (mobile emulation)', () => {
   });
 
   test('solves level 1 with swipes and taps the next button', async ({ page }) => {
-    await page.goto('./');
+    await page.goto(EASY_1);
     for (let i = 0; i < 3; i++) await swipe(page, 120, 0);
     await expect(overlay(page)).toBeVisible();
     await page.getByRole('button', { name: 'Volgende level' }).tap();
@@ -154,18 +226,19 @@ test.describe('touch play (mobile emulation)', () => {
   });
 
   test('a short drag is not a move', async ({ page }) => {
-    await page.goto('./');
+    await page.goto(EASY_1);
     await swipe(page, 10, 0);
     await expect(moves(page)).toHaveText('Zetten: 0');
   });
 });
 
 test.describe('layout', () => {
-  for (const [index, definition] of LEVEL_DEFINITIONS.entries()) {
-    test(`level ${index + 1} (${definition.id}) fits the screen without scrolling`, async ({
-      page,
-    }) => {
-      await page.goto(`./?level=${index + 1}`);
+  const all = TIERS.flatMap((tier) =>
+    tier.definitions.map((definition, index) => ({ tier, definition, index })),
+  );
+  for (const { tier, definition, index } of all) {
+    test(`${definition.id} fits the screen without scrolling`, async ({ page }) => {
+      await page.goto(`./?tier=${tier.id}&level=${index + 1}`);
       const viewport = page.viewportSize()!;
       const board = (await page.getByTestId('board').boundingBox())!;
       expect(board.x).toBeGreaterThanOrEqual(0);

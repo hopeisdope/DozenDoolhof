@@ -60,11 +60,24 @@ body {
 .app {
   position: fixed;
   inset: 0;
+}
+
+/* Each screen fills the app; only one is visible at a time. */
+.screen {
+  position: absolute;
+  inset: 0;
+  padding: max(env(safe-area-inset-top), 12px) max(env(safe-area-inset-right), 16px)
+    max(env(safe-area-inset-bottom), 16px) max(env(safe-area-inset-left), 16px);
+}
+
+.screen[hidden] {
+  display: none;
+}
+
+.game {
   display: grid;
   grid-template: 'hud' auto 'stage' minmax(0, 1fr) 'controls' auto / minmax(0, 1fr);
   gap: 12px;
-  padding: max(env(safe-area-inset-top), 12px) max(env(safe-area-inset-right), 16px)
-    max(env(safe-area-inset-bottom), 16px) max(env(safe-area-inset-left), 16px);
 }
 
 /* ---------- HUD ---------- */
@@ -100,30 +113,19 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.hud__progress {
+.hud__tier {
   display: flex;
-  gap: clamp(3px, 1vw, 6px);
+  gap: 2px;
   margin: 0;
-  padding: 0;
-  list-style: none;
+  padding: 3px 10px;
+  border: 3px solid rgb(0 0 0 / 35%);
+  border-radius: 999px;
+  background: var(--c-panel);
 }
 
-.hud__dot {
-  width: clamp(12px, 3.6vw, 16px);
-  height: clamp(12px, 3.6vw, 16px);
-  border: 2.5px solid var(--c-outline);
-  border-radius: 50%;
-  background: linear-gradient(#4a6a8f, #2b4566);
-}
-
-.hud__dot.is-done {
-  background: linear-gradient(#fff07a, var(--c-star) 55%, #f59c0b);
-}
-
-.hud__dot.is-current {
-  box-shadow:
-    0 0 0 3px var(--c-text),
-    0 0 10px 3px rgb(255 255 255 / 45%);
+.hud__tier img {
+  width: clamp(16px, 5vw, 22px);
+  height: clamp(16px, 5vw, 22px);
 }
 
 /* ---------- Stage & board ---------- */
@@ -489,7 +491,7 @@ body {
 
 /* Short landscape screens (phones on their side): HUD left, controls right. */
 @media (orientation: landscape) and (max-height: 540px) {
-  .app {
+  .game {
     grid-template: 'hud stage controls' minmax(0, 1fr) / auto minmax(0, 1fr) auto;
   }
 
@@ -501,13 +503,9 @@ body {
   }
 
   .hud__title,
+  .hud__tier,
   .hud__moves {
     justify-self: start;
-  }
-
-  .hud__progress {
-    flex-direction: column;
-    padding-left: 6px;
   }
 
   .controls {
@@ -599,5 +597,225 @@ body {
   from {
     scale: 0.2;
     rotate: -90deg;
+  }
+}
+
+/* ---------- Level selection ---------- */
+
+.select {
+  display: grid;
+  grid-template: 'title' auto 'tiers' auto 'levels' minmax(0, 1fr) / minmax(0, 1fr);
+  gap: 16px;
+  --level-cols: 4;
+  --level-rows: 5;
+}
+
+.select__title {
+  grid-area: title;
+  margin: 0;
+  justify-self: center;
+  color: var(--c-star);
+  font-size: clamp(1.8rem, 8vw, 2.8rem);
+  font-weight: 900;
+  text-shadow: var(--text-outline);
+}
+
+.select__tiers {
+  grid-area: tiers;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: min(100%, 560px);
+  justify-self: center;
+}
+
+.tier {
+  --tier-top: #b4f55e;
+  --tier-mid: #6cc624;
+  --tier-bottom: #3f9612;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 84px;
+  padding: 8px 4px;
+  border: 4px solid var(--c-outline);
+  border-radius: 20px;
+  background: linear-gradient(var(--tier-top), var(--tier-mid) 55%, var(--tier-bottom));
+  box-shadow:
+    inset 0 -5px 0 rgb(0 0 0 / 18%),
+    0 5px 0 var(--c-outline);
+  color: var(--c-text);
+  font: inherit;
+  cursor: pointer;
+  opacity: 0.75;
+  touch-action: manipulation;
+}
+
+.tier--medium {
+  --tier-top: #ffd75e;
+  --tier-mid: #ffa81f;
+  --tier-bottom: #ec7a0a;
+}
+
+.tier--hard {
+  --tier-top: #ff8a6a;
+  --tier-mid: #f0452a;
+  --tier-bottom: #b52a14;
+}
+
+.tier[aria-selected='true'] {
+  opacity: 1;
+  outline: 4px solid var(--c-text);
+  outline-offset: 3px;
+}
+
+.tier:focus-visible {
+  outline: 4px solid var(--c-goal);
+  outline-offset: 3px;
+}
+
+.tier__name {
+  font-size: clamp(0.85rem, 3.9vw, 1.15rem);
+  font-weight: 900;
+  text-shadow: var(--text-outline);
+  white-space: nowrap;
+}
+
+.tier__stars {
+  display: flex;
+  gap: 1px;
+}
+
+.tier__stars img {
+  width: clamp(16px, 5vw, 24px);
+  height: clamp(16px, 5vw, 24px);
+}
+
+.tier__done {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-shadow: var(--text-outline);
+}
+
+.select__levels {
+  grid-area: levels;
+  min-height: 0;
+  container-type: size;
+}
+
+/* The grid always fits: it is as large as the space allows, never scrolling. */
+.levels {
+  display: grid;
+  grid-template-columns: repeat(var(--level-cols), minmax(0, 1fr));
+  gap: clamp(8px, 2.5cqw, 14px);
+  width: min(100cqw, 100cqh * var(--level-cols) / var(--level-rows), 560px);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.level-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 4px solid var(--c-outline);
+  border-radius: 22%;
+  background: linear-gradient(#ffe680, #ffc53a 50%, #f2a01c);
+  box-shadow:
+    inset 0 -5px 0 rgb(120 40 0 / 25%),
+    0 4px 0 var(--c-outline);
+  color: var(--c-text);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.level-button::before {
+  content: '';
+  position: absolute;
+  top: 6%;
+  left: 12%;
+  right: 12%;
+  height: 34%;
+  border-radius: 999px 999px 40% 40%;
+  background: linear-gradient(rgb(255 255 255 / 65%), rgb(255 255 255 / 0%));
+  pointer-events: none;
+}
+
+.levels--medium .level-button {
+  background: linear-gradient(#ffd38a, #ff9d3a 50%, #e8700f);
+}
+
+.levels--hard .level-button {
+  background: linear-gradient(#ffa48a, #f2603f 50%, #c43a1f);
+}
+
+.level-button__number {
+  position: relative;
+  font-size: clamp(1.1rem, 6cqw, 1.9rem);
+  font-weight: 900;
+  text-shadow: var(--text-outline);
+}
+
+.level-button__star {
+  position: absolute;
+  top: -18%;
+  right: -18%;
+  width: 52%;
+  height: 52%;
+}
+
+.level-button:active {
+  translate: 0 3px;
+  box-shadow:
+    inset 0 -4px 0 rgb(120 40 0 / 25%),
+    0 1px 0 var(--c-outline);
+}
+
+.level-button:focus-visible {
+  outline: 4px solid var(--c-goal);
+  outline-offset: 3px;
+}
+
+/* Wider screens: five columns of four rows. */
+@media (min-aspect-ratio: 3 / 4) {
+  .select {
+    --level-cols: 5;
+    --level-rows: 4;
+  }
+}
+
+/* Short landscape screens: tiers in a column next to the level grid. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .select {
+    grid-template: 'title levels' auto 'tiers levels' minmax(0, 1fr) / minmax(0, 220px) minmax(
+        0,
+        1fr
+      );
+    gap: 12px 20px;
+  }
+
+  .select__title {
+    font-size: 1.6rem;
+  }
+
+  .select__tiers {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+  }
+
+  .tier {
+    grid-template-columns: auto auto;
+    justify-content: center;
+    align-items: center;
+    column-gap: 8px;
+    min-height: 60px;
+  }
+
+  .tier__done {
+    grid-column: 1 / -1;
   }
 }

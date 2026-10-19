@@ -40,8 +40,11 @@ the hook in `.githooks/commit-msg` enforces this once enabled with
   - `history.ts`: `Game` met undo-geschiedenis. Een geblokkeerde zet, undo zonder historie of
     een herstart van een onaangeraakt level geeft **hetzelfde object** terug (identiteit =
     "niets veranderd"). Herstart is zelf ongedaan te maken.
-- `src/levels/`: parser voor het Sokoban-tekstformaat, leveldefinities met een bekende
-  LURD-oplossing per level.
+- `src/levels/`: parser voor het Sokoban-tekstformaat; `definitions.ts` bundelt de niveaus
+  (`TIERS`: Makkelijk, Gemiddeld, Moeilijk) uit `tiers/easy.ts`, `medium.ts` en `hard.ts`,
+  elk twintig levels met een bekende LURD-oplossing.
+- `src/solver/solver.ts`: BFS-oplosser over duwen (fewest pushes), met dode-cel-snoei.
+  Gebruikt door de tests; bruikbaar voor hints in een latere fase.
 - `src/render/board.ts`: vloer- en doeltegels in een CSS-grid, daarboven één muurlaag (SVG),
   speler en dozen als absoluut gepositioneerde stukken met `transform`. Alles schaalt via
   container query units; er is geen resize-code.
@@ -52,8 +55,9 @@ the hook in `.githooks/commit-msg` enforces this once enabled with
   opeenvolgende spelstatussen (ook bij undo en herstart).
 - `src/assets/`: handgemaakte SVG's. Tegels en kisten zijn CSS-achtergronden; `player.svg`
   wordt inline geladen (`?raw`) zodat CSS de onderdelen kan animeren (`.hero__*`-klassen).
-- `src/ui/`: `game-screen.ts` regelt het scherm, `input.ts` swipe (pointer events, één zet
-  per gebaar) en toetsenbord.
+- `src/ui/`: `level-select.ts` is het startscherm (niveau en level kiezen), `game-screen.ts`
+  het spelscherm, `progress.ts` de voortgang (alleen in het geheugen), `input.ts` swipe
+  (pointer events, één zet per gebaar) en toetsenbord, `icons.ts` gedeelde iconen.
 
 Houd de engine vrij van DOM-code; de weergave mag later vervangen worden (bijvoorbeeld door
 Canvas) zonder de regels te raken.
@@ -73,7 +77,11 @@ Canvas) zonder de regels te raken.
 - Formaat: `#` muur, spatie vloer, `@` speler, `$` doos, `.` doel, `*` doos op doel,
   `+` speler op doel. Het level moet volledig door muren omsloten zijn.
 - Elk level krijgt een `solution` in LURD (`udlr` lopen, `UDLR` duwen); de tests spelen hem
-  na. Houd levels maximaal 10×10, zodat ze op een iPhone passen.
+  na en de oplosser moet het level ook oplossen. Houd levels maximaal 10×10, zodat ze op een
+  iPhone passen. Geen dubbele puzzels, ook niet gedraaid of gespiegeld (getest).
+- Niveaus: Makkelijk 1–2 dozen en korte routes; Gemiddeld 1–2 dozen, langere routes en
+  volgorde; Moeilijk 2–4 dozen en echte planning. Binnen een niveau oplopend in moeilijkheid
+  (beoordeeld op duwen, richtingswisselingen, looproute en zoekruimte van de oplosser).
 
 ## Commando's
 
@@ -100,5 +108,5 @@ npm run format         # Prettier toepassen
   browserconsole (DevTools; op iOS via Safari → Ontwikkel → het toestel).
 - Een e2e-fout laat een trace achter in `test-results/`: `npx playwright show-trace <pad>/trace.zip`.
   In CI staat het Playwright-rapport als artifact `playwright-report` bij een mislukte run.
-- Een level direct openen: `?level=N` achter de URL.
+- Een level direct openen: `?tier=easy|medium|hard&level=N` achter de URL.
 - TODO: vanaf fase 5 staat de voortgang in `localStorage`; beschrijf dan hoe je die bekijkt en wist.
