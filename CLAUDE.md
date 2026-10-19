@@ -3,6 +3,16 @@
 Dozendoolhof is een Sokoban-achtige puzzelgame voor een kind van 6 jaar, als webapp voor
 iPhone en iPad (later een PWA), gehost op GitHub Pages.
 
+General working agreements are in `~/.claude/CLAUDE.md`. This file adds what is
+specific to this project.
+
+## Session start
+
+Read `WORKLIST.md` first. Keep `HANDOFF.md` current at the end of long sessions. Every commit
+must update `WORKLIST.md`/`HANDOFF.md`, reference an issue (`#42`) or carry `[skip worklist]`;
+the hook in `.githooks/commit-msg` enforces this once enabled with
+`git config core.hooksPath .githooks` (once per clone).
+
 ## Werkwijze
 
 - Werk in fases. Elke fase krijgt een eigen branch (`phase-N-...`) en wordt pas gemerged na
@@ -72,3 +82,12 @@ npm run format         # Prettier toepassen
 - UI-gedrag (spelen, undo/herstart, swipe, layout op mobiele viewports) wordt gedekt in
   `tests/e2e/game.spec.ts`.
 - Voor een commit moeten `npm run check` en `npm run test:e2e` slagen.
+
+## Debugging
+
+- Er is geen backend, geen logbestand en (nog) geen datastore. Fouten verschijnen in de
+  browserconsole (DevTools; op iOS via Safari → Ontwikkel → het toestel).
+- Een e2e-fout laat een trace achter in `test-results/`: `npx playwright show-trace <pad>/trace.zip`.
+  In CI staat het Playwright-rapport als artifact `playwright-report` bij een mislukte run.
+- Een level direct openen: `?level=N` achter de URL.
+- TODO: vanaf fase 5 staat de voortgang in `localStorage`; beschrijf dan hoe je die bekijkt en wist.

@@ -17,3 +17,21 @@ blob-report/
 !.vscode/extensions.json
 .idea/
 *.local
+
+# Secrets and local config
+.env
+.envrc
+*.pem
+*.key
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Data never belongs in git
+/data/
+*.db
+*.sqlite
+*.sqlite3
