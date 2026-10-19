@@ -4,9 +4,9 @@ Een vrolijke, kindvriendelijke Sokoban-achtige puzzelgame voor iPhone en iPad, g
 een kind van zes jaar. Duw de dozen naar de blauwe doelen. Er is geen tijdsdruk en je hoeft
 niet te kunnen lezen om te spelen.
 
-> **Status: fase 2 (visuele stijl).** Glanzende cartoonstijl met een doorlopende bakstenen
-> rand, stenen vloertegels, houten kisten, lichtgevende doelen en een geanimeerd
-> bouwvakkertje. Volgende fase: touchbediening en kindvriendelijke UX.
+> **Status: levelstructuur.** 60 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van
+> elk twintig levels, direct te kiezen vanaf het startscherm, zonder tutorial. Glanzende
+> cartoonstijl met een geanimeerd bouwvakkertje. Voortgang wordt nog niet bewaard na herladen.
 
 Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 
@@ -18,8 +18,11 @@ Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 | Ongedaan maken   | Knop met de gebogen pijl                       | `z` of Backspace |
 | Opnieuw beginnen | Knop met de ronde pijl (ook ongedaan te maken) | `r`              |
 | Volgende level   | Groene pijlknop na "Gelukt!"                   | Enter            |
+| Naar de levels   | Knop met de vier vakjes                        | Escape           |
 
-Een specifiek level openen kan met `?level=3` achter de URL.
+Het startscherm toont de drie niveaus en de twintig levels van het gekozen niveau. Een gehaald
+level krijgt een ster (alleen tijdens dit bezoek). Een level direct openen kan met
+`?tier=medium&level=3` achter de URL (`tier` is `easy`, `medium` of `hard`).
 
 ## Lokaal draaien
 
@@ -57,7 +60,8 @@ Eenmalig Chromium installeren: `npx playwright install chromium`.
 ```
 src/
   engine/       pure spelregels, zonder DOM (state, move, history/undo)
-  levels/       levelparser, leveldefinities, LURD-oplossingen
+  levels/       levelparser, niveaus, leveldefinities per niveau (tiers/), LURD-oplossingen
+  solver/       Sokoban-oplosser (valideert levels, meet moeilijkheid)
   assets/       SVG-artwork: tegels, kisten, bouwvakkertje, UI
   render/       DOM-weergave van het bord, muur-autotiling, spelerhouding
   ui/           spelscherm, swipe- en toetsenbordinvoer
@@ -65,13 +69,15 @@ src/
   main.ts       startpunt
 tests/
   engine/       unit tests voor de spelregels
-  levels/       unit tests voor parser en levels
+  levels/       unit tests voor parser en alle 60 levels
+  solver/       unit tests voor de oplosser
   e2e/          Playwright-tests
 ```
 
 ## Levels toevoegen
 
-Levels staan in `src/levels/definitions.ts` in het standaard Sokoban-tekstformaat:
+Levels staan per niveau in `src/levels/tiers/easy.ts`, `medium.ts` en `hard.ts`, in het
+standaard Sokoban-tekstformaat (`src/levels/definitions.ts` bundelt ze tot niveaus):
 
 | Teken | Betekenis | Teken | Betekenis      |
 | ----- | --------- | ----- | -------------- |
@@ -81,7 +87,9 @@ Levels staan in `src/levels/definitions.ts` in het standaard Sokoban-tekstformaa
 | `$`   | doos      |       |                |
 
 Elk level heeft een bekende oplossing in LURD-notatie (`u d l r` = lopen, `U D L R` =
-duwen). De tests spelen die oplossing na, zodat elk level aantoonbaar oplosbaar is.
+duwen). De tests spelen die oplossing na en laten de oplosser (`src/solver/solver.ts`) elk
+level opnieuw oplossen. Ze controleren ook dat er geen dubbele (gedraaide of gespiegelde)
+puzzels zijn, dat borden hoogstens 10×10 zijn en dat de niveaus in moeilijkheid oplopen.
 
 ## Publiceren op GitHub Pages
 

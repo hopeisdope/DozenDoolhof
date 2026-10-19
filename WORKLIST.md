@@ -4,13 +4,15 @@ Read at the start of every session; update when something is done or added.
 
 ## Now
 
-- [ ] Gebruiker beoordeelt fase 2 op iPhone en iPad (graphics, animaties, prestaties)
+- [ ] Gebruiker beoordeelt de levelstructuur: 60 levels, moeilijkheid per niveau, levelkeuze
+      op iPhone en iPad
 
 ## Next
 
 - [ ] Fase 3: touchbediening en kindvriendelijke UX (tik-om-te-lopen, feedback)
-- [ ] Fase 4: levelontwerp en puzzelcontrole (oplosser, ~30 levels, validatie in CI)
-- [ ] Fase 5: wereldkaart, sterren en voortgang in localStorage
+- [ ] Voortgang duurzaam bewaren (localStorage met versienummer en migratie); nu alleen in
+      het geheugen, gaat verloren bij herladen
+- [ ] Fase 5: wereldkaart en beloningen (sterren per level)
 - [ ] Fase 6: hints, detectie van vastlopen, moeilijkheidsopbouw
 - [ ] Fase 7: PWA, service worker, offline spelen
 - [ ] Fase 8: eindtest op iPhone en iPad
@@ -29,3 +31,5 @@ Read at the start of every session; update when something is done or added.
       CI- en deploy-workflow): commit `909f793`, gemerged via PR #1, getest op iPhone
 - [x] Fase 2: visuele stijl (SVG-tegels, muur-autotiling, kisten, doelen, bouwvakkertje met
       loop-/duwhouding, glanzende UI), branch `phase-2-visual-assets`
+- [x] Levelstructuur (branch `phase-3-level-structure`): 3 niveaus × 20 levels, levelkeuze
+      als startscherm, oplosser, validatie van alle 60 levels in de tests
