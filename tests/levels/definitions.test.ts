@@ -24,19 +24,72 @@ function symmetries(map: string): string[] {
   return forms;
 }
 
+/** A LURD solution in all eight orientations, to spot the same puzzle in another room. */
+function solutionForms(solution: string): string[] {
+  const rotate: Record<string, string> = { u: 'r', r: 'd', d: 'l', l: 'u' };
+  const mirror: Record<string, string> = { u: 'u', d: 'd', l: 'r', r: 'l' };
+  const map = (text: string, table: Record<string, string>) =>
+    [...text]
+      .map((c) => (c === c.toUpperCase() ? table[c.toLowerCase()]!.toUpperCase() : table[c]!))
+      .join('');
+  const forms: string[] = [];
+  for (let current of [solution, map(solution, mirror)]) {
+    for (let i = 0; i < 4; i++) {
+      forms.push(current);
+      current = map(current, rotate);
+    }
+  }
+  return forms;
+}
+
+const median = (values: number[]) => [...values].sort((a, b) => a - b)[values.length >> 1]!;
+const effort = new Map(LEVELS.map((level) => [level.id, solve(level)!.explored]));
+
 describe('tier structure', () => {
-  it('has three tiers, Makkelijk, Gemiddeld and Moeilijk, of twenty levels each', () => {
+  it('has three tiers, Makkelijk, Gemiddeld and Moeilijk, of forty levels each', () => {
     expect(TIERS.map((tier) => [tier.id, tier.name, tier.stars, tier.levels.length])).toEqual([
-      ['easy', 'Makkelijk', 1, 20],
-      ['medium', 'Gemiddeld', 2, 20],
-      ['hard', 'Moeilijk', 3, 20],
+      ['easy', 'Makkelijk', 1, 40],
+      ['medium', 'Gemiddeld', 2, 40],
+      ['hard', 'Moeilijk', 3, 40],
     ]);
-    expect(LEVELS).toHaveLength(60);
+    expect(LEVELS).toHaveLength(120);
   });
 
   it('uses unique ids and names', () => {
-    expect(new Set(LEVEL_DEFINITIONS.map((d) => d.id)).size).toBe(60);
-    expect(new Set(LEVEL_DEFINITIONS.map((d) => d.name)).size).toBe(60);
+    expect(new Set(LEVEL_DEFINITIONS.map((d) => d.id)).size).toBe(120);
+    expect(new Set(LEVEL_DEFINITIONS.map((d) => d.name)).size).toBe(120);
+  });
+
+  it('gives every tier the stable ids <tier>-01 to <tier>-40', () => {
+    for (const tier of TIERS) {
+      const expected = Array.from(
+        { length: 40 },
+        (_, i) => `${tier.id}-${String(i + 1).padStart(2, '0')}`,
+      );
+      expect([...tier.definitions.map((d) => d.id)].sort(), tier.id).toEqual(expected);
+    }
+  });
+
+  it('keeps the first level of each tier in place', () => {
+    expect(TIERS.map((tier) => tier.definitions[0]!.id)).toEqual([
+      'easy-01',
+      'medium-01',
+      'hard-01',
+    ]);
+  });
+
+  it('contains no puzzle that is solved by the same moves as another, also rotated or mirrored', () => {
+    // easy-10 and easy-14 predate this check; they are kept so their ids stay valid.
+    const known = new Set(['easy-10', 'easy-14']);
+    const seen = new Map<string, string>();
+    for (const definition of LEVEL_DEFINITIONS) {
+      const forms = solutionForms(definition.solution);
+      const other = forms.map((form) => seen.get(form)).find((id) => id !== undefined);
+      if (!(other && known.has(other) && known.has(definition.id))) {
+        expect(other, `${definition.id} is solved like ${other}`).toBeUndefined();
+      }
+      seen.set(forms[0]!, definition.id);
+    }
   });
 
   it('contains no duplicate puzzles, also not rotated or mirrored', () => {
@@ -56,17 +109,36 @@ describe('tier structure', () => {
     }
   });
 
-  it('keeps Makkelijk to one or two boxes and Gemiddeld to at most two', () => {
-    const [easy, medium] = TIERS;
-    for (const level of easy!.levels) expect(level.start.boxes.length).toBeLessThanOrEqual(2);
-    for (const level of medium!.levels) expect(level.start.boxes.length).toBeLessThanOrEqual(2);
+  it('keeps Makkelijk to one or two boxes, Gemiddeld to at most two, Moeilijk to two to four', () => {
+    const [easy, medium, hard] = TIERS;
+    const boxes = (level: (typeof LEVELS)[number]) => level.start.boxes.length;
+    for (const level of easy!.levels) expect(boxes(level), level.id).toBeLessThanOrEqual(2);
+    for (const level of medium!.levels) expect(boxes(level), level.id).toBeLessThanOrEqual(2);
+    for (const level of hard!.levels) {
+      expect(boxes(level), level.id).toBeGreaterThanOrEqual(2);
+      expect(boxes(level), level.id).toBeLessThanOrEqual(4);
+    }
+    // Mostly one box in Makkelijk; mostly three in Moeilijk.
+    expect(easy!.levels.filter((level) => boxes(level) === 1).length).toBeGreaterThanOrEqual(28);
+    expect(hard!.levels.filter((level) => boxes(level) >= 3).length).toBeGreaterThanOrEqual(28);
   });
 
   it('gets harder from tier to tier (median search effort of the solver)', () => {
-    const median = (values: number[]) => values.sort((a, b) => a - b)[values.length >> 1]!;
-    const effort = TIERS.map((tier) => median(tier.levels.map((level) => solve(level)!.explored)));
-    expect(effort[0]).toBeLessThan(effort[1]!);
-    expect(effort[1]).toBeLessThan(effort[2]!);
+    const medians = TIERS.map((tier) => median(tier.levels.map((level) => effort.get(level.id)!)));
+    expect(medians[0]).toBeLessThan(medians[1]!);
+    expect(medians[1]).toBeLessThan(medians[2]!);
+  });
+
+  it('gets harder within each tier (first half against second half)', () => {
+    for (const tier of TIERS) {
+      const efforts = tier.levels.map((level) => effort.get(level.id)!);
+      const pushes = tier.levels.map((level) => solve(level)!.pushes);
+      const half = efforts.length / 2;
+      expect(median(efforts.slice(0, half)), tier.id).toBeLessThan(median(efforts.slice(half)));
+      expect(median(pushes.slice(0, half)), tier.id).toBeLessThanOrEqual(
+        median(pushes.slice(half)),
+      );
+    }
   });
 });
 

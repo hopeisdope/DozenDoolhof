@@ -4,15 +4,13 @@ Read at the start of every session; update when something is done or added.
 
 ## Now
 
-- [ ] Gebruiker beoordeelt de levelstructuur: 60 levels, moeilijkheid per niveau, levelkeuze
-      op iPhone en iPad
+- [ ] Gebruiker beoordeelt fase 4: 120 levels (40 per niveau, nieuwe levels tussen de oude),
+      sterren 1–3, bewaarde voortgang en wisknop, op iPhone en iPad
 
 ## Next
 
 - [ ] Fase 3: touchbediening en kindvriendelijke UX (tik-om-te-lopen, feedback)
-- [ ] Voortgang duurzaam bewaren (localStorage met versienummer en migratie); nu alleen in
-      het geheugen, gaat verloren bij herladen
-- [ ] Fase 5: wereldkaart en beloningen (sterren per level)
+- [ ] Fase 5: wereldkaart en beloningen
 - [ ] Fase 6: hints, detectie van vastlopen, moeilijkheidsopbouw
 - [ ] Fase 7: PWA, service worker, offline spelen
 - [ ] Fase 8: eindtest op iPhone en iPad
@@ -23,6 +21,10 @@ Read at the start of every session; update when something is done or added.
   kunnen raadplegen? Het staat nu alleen als upload in de fase-0/2-sessie.
 - Geluid en muziek: gewenst, en waar komen ze vandaan?
 - Interface: Nederlandse tekst of zo veel mogelijk zonder tekst?
+- Sterrennorm (3 = hoogstens de zetten van de bekende oplossing, 2 = tot 1,5×) goed voor een
+  kind van zes, of milder?
+- easy-10 en easy-14 zijn dezelfde puzzel in een andere kamer (zelfde oplossing gespiegeld);
+  één vervangen? Dat kost een ID-wijziging of een nieuw ontwerp onder hetzelfde ID.
 
 ## Done
 
@@ -33,3 +35,7 @@ Read at the start of every session; update when something is done or added.
       loop-/duwhouding, glanzende UI), branch `phase-2-visual-assets`
 - [x] Levelstructuur (branch `phase-3-level-structure`): 3 niveaus × 20 levels, levelkeuze
       als startscherm, oplosser, validatie van alle 60 levels in de tests
+- [x] Fase 4 (branch `phase-4-progress-and-levels`): 120 levels (20 nieuwe per niveau,
+      ontworpen met oplosser-gestuurde generator en tussen de bestaande gezet), voortgang en
+      sterren in localStorage (versie 1, migratiestructuur, veilig inlezen, terugval op
+      geheugen), wisknop met bevestiging

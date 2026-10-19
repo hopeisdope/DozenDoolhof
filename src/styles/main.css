@@ -537,7 +537,7 @@ body {
   display: grid;
   justify-items: center;
   gap: 6px;
-  padding: 20px 44px 32px;
+  padding: 20px clamp(20px, 8vw, 44px) 32px;
   border: 5px solid var(--c-outline);
   border-radius: 32px;
   background: linear-gradient(#3a7cc0, #1d4f86 60%, #173f6d);
@@ -548,11 +548,35 @@ body {
   animation: pop-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.overlay__star {
-  width: 120px;
-  height: 120px;
+.overlay__stars {
+  display: flex;
+  align-items: end;
   margin-top: -64px;
-  animation: star-spin 700ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.overlay__stars img {
+  width: 64px;
+  height: 64px;
+  animation: star-spin 700ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+/* The middle star sits higher and larger, like a podium. */
+.overlay__stars img:nth-child(2) {
+  width: 88px;
+  height: 88px;
+  margin: 0 -8px 12px;
+  animation-delay: 120ms;
+}
+
+.overlay__stars img:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+/* A star slot that was not earned: a faint placeholder. */
+.overlay__stars img.is-empty,
+.level-button__stars img.is-empty {
+  opacity: 0.3;
+  animation: none;
 }
 
 .overlay__title {
@@ -604,10 +628,15 @@ body {
 
 .select {
   display: grid;
-  grid-template: 'title' auto 'tiers' auto 'levels' minmax(0, 1fr) / minmax(0, 1fr);
+  grid-template:
+    'title' auto
+    'notice' auto
+    'tiers' auto
+    'levels' minmax(0, 1fr)
+    'reset' auto
+    / minmax(0, 1fr);
   gap: 16px;
   --level-cols: 4;
-  --level-rows: 5;
 }
 
 .select__title {
@@ -697,18 +726,45 @@ body {
   text-shadow: var(--text-outline);
 }
 
+.select__notice {
+  grid-area: notice;
+  margin: -8px 0 0;
+  justify-self: center;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: var(--c-panel);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+  text-shadow: var(--text-outline);
+}
+
+.select__notice[hidden] {
+  display: none;
+}
+
+/*
+ * Forty levels per tier do not fit on a phone at a comfortable size, so the level
+ * grid scrolls inside its own area; the page itself never scrolls. Buttons keep a
+ * finger-sized minimum.
+ */
 .select__levels {
   grid-area: levels;
   min-height: 0;
-  container-type: size;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  container-type: inline-size;
+  /* Room for the star rows and button shadows of the outer buttons. */
+  padding: 14px 6px 16px;
 }
 
-/* The grid always fits: it is as large as the space allows, never scrolling. */
 .levels {
   display: grid;
   grid-template-columns: repeat(var(--level-cols), minmax(0, 1fr));
-  gap: clamp(8px, 2.5cqw, 14px);
-  width: min(100cqw, 100cqh * var(--level-cols) / var(--level-rows), 560px);
+  gap: clamp(14px, 3.5cqw, 20px) clamp(8px, 2.5cqw, 14px);
+  width: min(100%, 600px);
   margin: 0 auto;
   padding: 0;
   list-style: none;
@@ -760,12 +816,54 @@ body {
   text-shadow: var(--text-outline);
 }
 
-.level-button__star {
+.level-button__stars {
   position: absolute;
-  top: -18%;
-  right: -18%;
-  width: 52%;
-  height: 52%;
+  bottom: -16%;
+  left: 50%;
+  display: flex;
+  translate: -50% 0;
+}
+
+.level-button__stars img {
+  width: clamp(18px, 6cqw, 28px);
+  height: clamp(18px, 6cqw, 28px);
+  margin: 0 -2px;
+}
+
+/* Wipe-progress button: muted and tucked below the levels. */
+.button--reset {
+  grid-area: reset;
+  justify-self: end;
+  width: 60px;
+  height: 60px;
+  border-width: 3px;
+  border-radius: 18px;
+  background: linear-gradient(#9fb4c9, #6f88a3 50%, #536b85);
+}
+
+.confirm {
+  max-width: 340px;
+  padding: 24px 28px 28px;
+  text-align: center;
+  white-space: normal;
+}
+
+.confirm__title {
+  font-size: 1.8rem;
+  white-space: nowrap;
+}
+
+.confirm__buttons {
+  display: flex;
+  gap: 24px;
+}
+
+.button--confirm {
+  background: linear-gradient(#ff8a6a, #f0452a 50%, #b52a14);
+}
+
+.button--cancel {
+  background: linear-gradient(#b4f55e, #6cc624 50%, #3f9612);
 }
 
 .level-button:active {
@@ -780,21 +878,22 @@ body {
   outline-offset: 3px;
 }
 
-/* Wider screens: five columns of four rows. */
-@media (min-aspect-ratio: 3 / 4) {
+/* Wider screens: five columns, so a tier is eight rows. */
+@media (min-width: 440px) {
   .select {
     --level-cols: 5;
-    --level-rows: 4;
   }
 }
 
 /* Short landscape screens: tiers in a column next to the level grid. */
 @media (orientation: landscape) and (max-height: 540px) {
   .select {
-    grid-template: 'title levels' auto 'tiers levels' minmax(0, 1fr) / minmax(0, 220px) minmax(
-        0,
-        1fr
-      );
+    grid-template:
+      'title levels' auto
+      'notice levels' auto
+      'tiers levels' minmax(0, 1fr)
+      'reset levels' auto
+      / minmax(0, 220px) minmax(0, 1fr);
     gap: 12px 20px;
   }
 
@@ -817,5 +916,9 @@ body {
 
   .tier__done {
     grid-column: 1 / -1;
+  }
+
+  .button--reset {
+    justify-self: center;
   }
 }
