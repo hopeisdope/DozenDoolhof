@@ -8,6 +8,7 @@ import {
   type Game,
 } from '../engine/history';
 import type { Direction, Level } from '../engine/state';
+import starUrl from '../assets/ui/star.svg';
 import { BoardView } from '../render/board';
 import { bindKeyboard, bindSwipe } from './input';
 
@@ -17,9 +18,11 @@ const ICONS = {
   next: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
 };
 
+/** White icon with a thick dark outline, drawn as two stacked strokes. */
 function icon(paths: string): string {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"
-    stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round"
+    stroke-linejoin="round"><g stroke="#3b1d0e" stroke-width="6.5">${paths}</g>
+    <g stroke="currentColor" stroke-width="3">${paths}</g></svg>`;
 }
 
 function button(className: string, label: string, iconPaths: string): HTMLButtonElement {
@@ -102,7 +105,7 @@ export class GameScreen {
     this.overlay.setAttribute('aria-labelledby', 'win-title');
     this.overlay.innerHTML = `
       <div class="overlay__card">
-        <div class="overlay__star" aria-hidden="true">★</div>
+        <img class="overlay__star" src="${starUrl}" alt="" />
         <h2 class="overlay__title" id="win-title">Gelukt!</h2>
         <p class="overlay__moves"></p>
       </div>`;

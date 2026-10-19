@@ -64,6 +64,30 @@ test.describe('keyboard play (desktop)', () => {
     await expect(page.getByRole('button', { name: 'Ongedaan maken' })).toBeDisabled();
   });
 
+  test('the renderer follows the game: facing, push pose, filled goal and walls', async ({
+    page,
+  }) => {
+    await page.goto('./');
+    const board = page.getByTestId('board');
+    await expect(board.locator('svg.board__walls path').first()).toBeAttached();
+    await expect(player(page)).toHaveAttribute('data-facing', 'down');
+
+    await page.keyboard.press('ArrowUp');
+    await expect(player(page)).toHaveAttribute('data-facing', 'up');
+    await expect(player(page)).not.toHaveClass(/is-pushing/);
+
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowRight');
+    await expect(player(page)).toHaveAttribute('data-facing', 'right');
+    await page.keyboard.press('ArrowRight'); // push
+    await expect(player(page)).toHaveClass(/is-pushing/);
+    await expect(board.locator('.tile--goal.is-filled')).toHaveCount(0);
+
+    await page.keyboard.press('ArrowRight'); // box onto the goal
+    await expect(board.locator('.tile--goal.is-filled')).toHaveCount(1);
+    await expect(page.locator('.piece--box.is-on-goal')).toHaveCount(1);
+  });
+
   test('undo and restart buttons restore earlier states', async ({ page }) => {
     await page.goto('./?level=2');
     await expect(page.getByRole('heading', { name: 'Level 2' })).toBeVisible();
@@ -154,6 +178,10 @@ test.describe('layout', () => {
       for (const name of ['Ongedaan maken', 'Opnieuw beginnen']) {
         await expect(page.getByRole('button', { name })).toBeInViewport({ ratio: 1 });
       }
+      await expect(page.getByRole('heading', { name: `Level ${index + 1}` })).toBeInViewport({
+        ratio: 1,
+      });
+      await expect(moves(page)).toBeInViewport({ ratio: 1 });
       const scroll = await page.evaluate(() => ({
         height: document.documentElement.scrollHeight,
         width: document.documentElement.scrollWidth,

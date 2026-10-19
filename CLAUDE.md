@@ -15,9 +15,10 @@ the hook in `.githooks/commit-msg` enforces this once enabled with
 
 ## Werkwijze
 
-- Werk in fases. Elke fase krijgt een eigen branch (`phase-N-...`) en wordt pas gemerged na
-  goedkeuring door de gebruiker. Begin nooit zelf aan de volgende fase.
-- Commit of push niet naar `main` en deploy niet handmatig; deployment gaat alleen via
+- Werk in fases. Elke fase krijgt een eigen branch (`phase-N-...`). Merge naar `main` alleen
+  als de gebruiker dat in de faseopdracht vraagt of goedkeurt, en alleen met groene checks;
+  nooit force-pushen. Begin nooit zelf aan de volgende fase.
+- Commit niet rechtstreeks op `main` en deploy niet handmatig; deployment gaat alleen via
   `.github/workflows/deploy.yml` bij een push naar `main`.
 - Wijzig geen repository-instellingen (Pages, branchbeveiliging) zonder toestemming.
 - Rapporteer testresultaten eerlijk. Chromium-emulatie is geen test op iOS.
@@ -41,9 +42,16 @@ the hook in `.githooks/commit-msg` enforces this once enabled with
     "niets veranderd"). Herstart is zelf ongedaan te maken.
 - `src/levels/`: parser voor het Sokoban-tekstformaat, leveldefinities met een bekende
   LURD-oplossing per level.
-- `src/render/board.ts`: tegels in een CSS-grid, speler en dozen als absoluut
-  gepositioneerde stukken met `transform`. Alles schaalt via container query units; er is geen
-  resize-code.
+- `src/render/board.ts`: vloer- en doeltegels in een CSS-grid, daarboven één muurlaag (SVG),
+  speler en dozen als absoluut gepositioneerde stukken met `transform`. Alles schaalt via
+  container query units; er is geen resize-code.
+- `src/render/walls.ts`: muur-autotiling. Elke muurcel wordt een baksteen waarvan de vorm
+  afhangt van de vier buren (voeg naar een muur, dikke contour naar buiten, grote bocht op de
+  buitenhoek). Pure functies, getest in `tests/render/`.
+- `src/render/motion.ts`: leidt kijkrichting, loopanimatie en duwhouding af uit twee
+  opeenvolgende spelstatussen (ook bij undo en herstart).
+- `src/assets/`: handgemaakte SVG's. Tegels en kisten zijn CSS-achtergronden; `player.svg`
+  wordt inline geladen (`?raw`) zodat CSS de onderdelen kan animeren (`.hero__*`-klassen).
 - `src/ui/`: `game-screen.ts` regelt het scherm, `input.ts` swipe (pointer events, één zet
   per gebaar) en toetsenbord.
 
@@ -53,6 +61,9 @@ Canvas) zonder de regels te raken.
 ## Conventies
 
 - Code, identifiers en commentaar in het Engels; UI-teksten en documentatie in het Nederlands.
+- Art direction: glanzende cartoonstijl, dikke donkerbruine contouren (`#3b1d0e`/`#4a1606`),
+  licht van linksboven, schaduwen naar rechtsonder. Geen CSS-filters op spelobjecten (iOS),
+  geen emoji als asset, geen externe afbeeldingen; assets blijven binnen hun tegel.
 - Spelen mag geen leesvaardigheid vereisen: knoppen zijn iconen met een `aria-label`.
 - Touch-doelen minimaal ~60 pt. Het bord mag de pagina nooit laten scrollen of zoomen.
 - Geen backend, accounts, analytics, advertenties of persoonsgegevens.
