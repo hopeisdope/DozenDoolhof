@@ -39,3 +39,5 @@ Read at the start of every session; update when something is done or added.
       ontworpen met oplosser-gestuurde generator en tussen de bestaande gezet), voortgang en
       sterren in localStorage (versie 1, migratiestructuur, veilig inlezen, terugval op
       geheugen), wisknop met bevestiging
+- [x] Werkafspraken bijgewerkt (project-start): CLAUDE.md met Session start, "Git: merge to
+      main after every commit", End of task en Compact instructions

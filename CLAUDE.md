@@ -8,16 +8,32 @@ specific to this project.
 
 ## Session start
 
-Read `WORKLIST.md` first. Keep `HANDOFF.md` current at the end of long sessions. Every commit
-must update `WORKLIST.md`/`HANDOFF.md`, reference an issue (`#42`) or carry `[skip worklist]`;
-the hook in `.githooks/commit-msg` enforces this once enabled with
+Read `WORKLIST.md` and `HANDOFF.md` before doing anything else. Run
+`git pull` first so you start from the latest `main`.
+
+Every commit must update `WORKLIST.md`/`HANDOFF.md`, reference an issue (`#42`) or carry
+`[skip worklist]`; the hook in `.githooks/commit-msg` enforces this once enabled with
 `git config core.hooksPath .githooks` (once per clone).
+
+## Git: merge to main after every commit
+
+`main` is the single source of truth, so every session on every device starts
+from the same state.
+
+- After every commit, push it. If you are on a branch other than `main`, merge
+  it into `main` right away and push `main`:
+  `git checkout main && git pull --ff-only && git merge --no-edit <branch> && git push && git checkout <branch>`
+- If you are already on `main`, just `git push`.
+- If the merge conflicts, the pull is not a fast-forward, or pushing to `main`
+  is refused, stop and tell the user. Never force-push, never resolve a conflict
+  by discarding someone else's changes.
 
 ## Werkwijze
 
-- Werk in fases. Elke fase krijgt een eigen branch (`phase-N-...`). Merge naar `main` alleen
-  als de gebruiker dat in de faseopdracht vraagt of goedkeurt, en alleen met groene checks;
-  nooit force-pushen. Begin nooit zelf aan de volgende fase.
+- Werk in fases. Elke fase krijgt een eigen branch (`phase-N-...`); elke commit daarop gaat
+  direct naar `main` volgens de Git-sectie hierboven, alleen met groene checks
+  (`npm run check` en `npm run test:e2e`). Nooit force-pushen. Begin nooit zelf aan de
+  volgende fase.
 - Commit niet rechtstreeks op `main` en deploy niet handmatig; deployment gaat alleen via
   `.github/workflows/deploy.yml` bij een push naar `main`.
 - Wijzig geen repository-instellingen (Pages, branchbeveiliging) zonder toestemming.
@@ -114,3 +130,18 @@ npm run format         # Prettier toepassen
 - Voortgang staat in `localStorage` onder `dozendoolhof.progress`. Bekijken: DevTools →
   Application → Local Storage, of `localStorage.getItem('dozendoolhof.progress')`. Wissen: de
   prullenbakknop op het startscherm of `localStorage.removeItem('dozendoolhof.progress')`.
+
+## End of task
+
+When a task is finished (tests pass, work committed):
+
+1. Update `HANDOFF.md` (state, open issues, next step) and tick off `WORKLIST.md`.
+2. Commit, merge to `main` and push as described above.
+3. End your reply with: `✅ Done. Safe to /clear or start a fresh session.`
+
+Do not start the next unrelated task in the same context; the user clears first.
+
+## Compact instructions
+
+When compacting, keep only decisions, changed file paths and open problems.
+Drop tool output and exploration.
