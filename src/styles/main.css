@@ -1241,6 +1241,39 @@ body {
   outline-offset: 3px;
 }
 
+/* Where to carry on: a glowing ring and the worker waving from the corner. */
+.level-button.is-next {
+  outline: 4px solid var(--c-text);
+  outline-offset: 3px;
+  animation: next-glow 1.2s ease-in-out infinite alternate;
+}
+
+.level-button__worker {
+  position: absolute;
+  top: -20%;
+  left: -8%;
+  width: 58%;
+  height: 58%;
+  pointer-events: none;
+}
+
+.level-button__worker .hero {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes next-glow {
+  to {
+    outline-color: var(--c-star);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .level-button.is-next {
+    animation: none;
+  }
+}
+
 /* Wider screens: five columns, so a tier is eight rows. */
 @media (min-width: 440px) {
   .select {
@@ -1808,5 +1841,64 @@ body {
   .overlay__stars img,
   .hint-notice {
     animation: none !important;
+  }
+}
+
+/* ---------- First-time hand demo ---------- */
+
+.swipe-demo {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.swipe-demo[hidden] {
+  display: none;
+}
+
+.swipe-demo__hand {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% / var(--cols));
+  height: calc(100% / var(--rows));
+  animation: swipe-demo 1.6s ease-in-out infinite;
+}
+
+.swipe-demo__svg {
+  position: absolute;
+  top: 36%;
+  left: 18%;
+  width: 76%;
+  overflow: visible;
+}
+
+@keyframes swipe-demo {
+  0%,
+  12% {
+    opacity: 0;
+    translate: 0 0;
+  }
+  25% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  70% {
+    opacity: 1;
+    translate: calc(var(--dx) * 100%) calc(var(--dy) * 100%);
+  }
+  100% {
+    opacity: 0;
+    translate: calc(var(--dx) * 100%) calc(var(--dy) * 100%);
+  }
+}
+
+/* Without motion the hand simply points from the cell the worker should step to. */
+@media (prefers-reduced-motion: reduce) {
+  .swipe-demo__hand {
+    animation: none;
+    translate: calc(var(--dx) * 100%) calc(var(--dy) * 100%);
   }
 }
