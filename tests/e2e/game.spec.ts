@@ -1424,15 +1424,29 @@ test.describe('sound settings by touch (mobile emulation)', () => {
   });
 });
 
-/** Waits until the service worker has installed and controls the page. */
+/**
+ * Waits until the service worker has installed and controls the page. A worker that
+ * activates while the page is being (re)loaded cannot claim that page; the next
+ * navigation is controlled, so then the page is loaded once more.
+ */
 async function waitForServiceWorker(page: Page): Promise<void> {
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
-    if (navigator.serviceWorker.controller) return;
-    await new Promise((resolve) =>
-      navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }),
-    );
   });
+  const controlled = await page.evaluate(
+    () =>
+      new Promise<boolean>((resolve) => {
+        if (navigator.serviceWorker.controller) return resolve(true);
+        navigator.serviceWorker.addEventListener('controllerchange', () => resolve(true), {
+          once: true,
+        });
+        setTimeout(() => resolve(navigator.serviceWorker.controller !== null), 3000);
+      }),
+  );
+  if (!controlled) {
+    await page.reload();
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  }
 }
 
 function pngSize(buffer: Buffer): { width: number; height: number } {
@@ -1526,7 +1540,9 @@ test.describe('installable app (desktop)', () => {
 
     await Promise.all([page.waitForEvent('load'), update.click()]);
     await expect(page.getByTestId('level-select')).toBeVisible();
-    await expect(update).toBeHidden();
+    // (The reloaded page registers plain `sw.js` again, which the browser rightly sees as
+    // yet another version of this test's `?e2e=next` worker; so no check on the button here.
+    // "No button without a new version" is the first-visit test.)
     expect(
       await page.evaluate(() =>
         navigator.serviceWorker.controller?.scriptURL.endsWith('?e2e=next'),
