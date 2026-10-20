@@ -1,4 +1,6 @@
 import starUrl from '../assets/ui/star.svg';
+import { SILENT, type GameFeedback } from '../audio/feedback';
+import { moveCue } from '../audio/sounds';
 import {
   canUndo,
   createGame,
@@ -60,6 +62,8 @@ export class GameScreen {
   private checkedBoxes: readonly number[] | null = null;
   /** Rewards unlocked by winning the current level, shown on the win card. */
   private newRewards: readonly RewardItem[] = [];
+  /** The hint view shown last, to notice when "no way out" first appears. */
+  private hintKind: HintView['kind'] = 'none';
   private readonly hints = new HintController(createWorkerSolver(), (view) =>
     this.renderHint(view),
   );
@@ -67,6 +71,7 @@ export class GameScreen {
   constructor(
     private readonly rewards: Rewards,
     private readonly onExit: (tier: Tier) => void,
+    private readonly feedback: GameFeedback = SILENT,
   ) {
     this.element.className = 'screen game';
     this.element.hidden = true;
@@ -92,6 +97,7 @@ export class GameScreen {
 
   /** Starts level `levelIndex` (0-based) of `tier`. */
   open(tier: Tier, levelIndex: number): void {
+    this.feedback.stop();
     this.tier = tier;
     this.levelIndex = levelIndex;
     this.game = createGame(this.currentLevel);
@@ -104,7 +110,7 @@ export class GameScreen {
     this.hints.setLevel(this.currentLevel, this.tier.definitions[levelIndex]?.solution ?? '');
     this.renderHint(this.hints.view);
     this.checkedBoxes = null;
-    this.updateStuck();
+    this.updateStuck(false);
     this.title.textContent = `Level ${levelIndex + 1}`;
     this.title.title = this.currentLevel.name;
     this.tierBadge.className = `hud__tier hud__tier--${tier.id}`;
@@ -216,19 +222,30 @@ export class GameScreen {
     const next = move(this.game, direction);
     if (next === this.game) {
       this.board.bump();
+      this.feedback.blocked();
       return;
     }
+    // The move's own sound first; a stuck box found by setGame() is announced after it.
+    const solved = isGameSolved(next);
+    if (!solved) this.feedback.moved(moveCue(this.currentLevel, this.game.state, next.state));
     this.setGame(next, true, direction);
+    if (solved) this.feedback.won(this.newRewards.length);
   }
 
   private undo(): void {
     if (isGameSolved(this.game)) return;
-    this.setGame(undo(this.game), true, null);
+    const next = undo(this.game);
+    if (next === this.game) return;
+    this.feedback.undone();
+    this.setGame(next, true, null);
   }
 
   private restart(): void {
     if (isGameSolved(this.game)) return;
-    this.setGame(restart(this.game), false, null);
+    const next = restart(this.game);
+    if (next === this.game) return;
+    this.feedback.undone();
+    this.setGame(next, false, null);
   }
 
   /**
@@ -256,6 +273,7 @@ export class GameScreen {
   }
 
   private exit(): void {
+    this.feedback.stop();
     this.hints.clear();
     this.element.hidden = true;
     this.overlay.hidden = true;
@@ -273,16 +291,19 @@ export class GameScreen {
 
   /**
    * Looks for stuck boxes when the boxes changed (a push, an undo or restart of one).
-   * Only reads the state; moves, history, stars and progress are untouched.
+   * Only reads the state; moves, history, stars and progress are untouched. With
+   * `announce`, more stuck boxes than before are also said out loud.
    */
-  private updateStuck(): void {
+  private updateStuck(announce = true): void {
     const boxes = this.game.state.boxes;
     if (boxes === this.checkedBoxes) return;
     this.checkedBoxes = boxes;
+    const before = this.stuckCells.length;
     this.stuckCells = findStuckBoxes(this.currentLevel, this.game.state).map((box) => box.cell);
     this.board.setStuck(this.stuckCells);
 
     const count = this.stuckCells.length;
+    if (announce && count > before) this.feedback.stuck(count);
     this.stuckNotice.hidden = count === 0;
     this.stuckNotice.classList.remove('is-nudged');
     const text = this.stuckNotice.querySelector('.hint-notice__text');
@@ -362,6 +383,8 @@ export class GameScreen {
   }
 
   private renderHint(view: HintView): void {
+    if (view.kind === 'stuck' && this.hintKind !== 'stuck') this.feedback.noWayOut();
+    this.hintKind = view.kind;
     if (view.kind === 'hint') this.hintLayer.show(view.stage, view.plan, this.game.state);
     else this.hintLayer.clear();
 

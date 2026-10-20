@@ -90,6 +90,13 @@ from the same state.
   terug en trekt ze aan), `wardrobe.ts` (gekozen outfit en "al gezien" onder
   `dozendoolhof.wardrobe`, versie 1, defensief ingelezen). Beloningen raken spelregels,
   zetten, sterren en voortgang nooit.
+- `src/audio/`: geluid en stem, optioneel. `sounds.ts` (gesynthetiseerde geluidjes via Web
+  Audio, geen bestanden; `moveCue()` kiest stap/duw/doel puur uit twee standen; `SoundPlayer`
+  maakt de AudioContext pas bij een gebaar, remt voetstappen af en gooit nooit), `speech.ts`
+  (`Speaker`: alleen met een Nederlandse stem, één zin tegelijk, `stop()` breekt af),
+  `feedback.ts` (`GameFeedback`: wanneer het spelscherm iets laat horen; `SILENT` als
+  standaard). Instellingen in `src/ui/settings.ts` (`dozendoolhof.settings`, v1) en
+  `settings-panel.ts`. Spraak alleen bij winst, vastgelopen doos en "zo lukt het niet meer".
 - `src/render/hero.ts`: het bouwvakkertje met outfit: palette-swap van helm- en shirtkleuren
   uit `player.svg`, stickers en gereedschap in de lege `hero__deco`/`hero__tool`-groepen, en
   per kopie unieke gradient-ID's. Ook de plaatjes voor de kledingkast (`itemIcon`).
@@ -150,7 +157,10 @@ npm run format         # Prettier toepassen
 - Een e2e-fout laat een trace achter in `test-results/`: `npx playwright show-trace <pad>/trace.zip`.
   In CI staat het Playwright-rapport als artifact `playwright-report` bij een mislukte run.
 - Een level direct openen: `?tier=easy|medium|hard&level=N` achter de URL.
-- De kledingkast staat onder `dozendoolhof.wardrobe` (wissen gaat samen met de voortgang).
+- De kledingkast staat onder `dozendoolhof.wardrobe` (wissen gaat samen met de voortgang),
+  de geluidsinstellingen onder `dozendoolhof.settings` (blijven staan bij wissen).
+- Geluid in e2e: luister naar `dozendoolhof:sound`-events op `window`; spraak via een nep
+  `speechSynthesis` (zie `listenToAudio` in `tests/e2e/game.spec.ts`).
 - Voortgang staat in `localStorage` onder `dozendoolhof.progress`. Bekijken: DevTools →
   Application → Local Storage, of `localStorage.getItem('dozendoolhof.progress')`. Wissen: de
   prullenbakknop op het startscherm of `localStorage.removeItem('dozendoolhof.progress')`.

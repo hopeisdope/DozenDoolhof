@@ -4,8 +4,15 @@ Concise state for reloading into a fresh session. Details are in `WORKLIST.md`.
 
 ## State
 
-- Fase 7 klaar op branch `phase-7-character-rewards` (gemerged naar `main`; zie de git-log).
-  Wacht op beoordeling door de gebruiker.
+- Fase 8 klaar op branch `phase-8-sound-feedback` (gemerged naar `main`; zie de git-log),
+  fase 7 daarvoor. Beide wachten op beoordeling door de gebruiker op een echt toestel.
+- Geluid: `src/audio/sounds.ts` (recepten per `Cue`, `SoundPlayer` met lazy AudioContext,
+  `unlock()` bij elk gebaar via capture-listeners in `main.ts`, voetstappen max ~11/s),
+  `speech.ts` (`Speaker`, alleen Nederlandse stem, `say(text, delay)` annuleert het vorige),
+  `feedback.ts` (`AudioFeedback`; het spelscherm roept `moved/blocked/undone/stuck/won/
+noWayOut/stop` aan). Instellingen: `src/ui/settings.ts` + `settings-panel.ts` (grijze
+  luidsprekerknop in de footer van het startscherm).
+- `main.ts` stuurt bij elk gespeeld geluid een `dozendoolhof:sound`-event (testhook).
 - Beloningen: `src/rewards/catalog.ts` (16 spulletjes in 4 slots: helm, shirt, sticker,
   gereedschap; per slot één `start`-item = `DEFAULT_OUTFIT`), `rewards.ts` (`Rewards`:
   ontgrendeling afgeleid uit `Progress`, `recordWin()` vervangt `progress.complete()` in het
@@ -23,6 +30,10 @@ Concise state for reloading into a fresh session. Details are in `WORKLIST.md`.
 
 ## Watch out for
 
+- Spraak is in Chromium/CI niet echt te horen (geen Nederlandse stem); e2e vervangt
+  `speechSynthesis`. Op iOS zelf testen. VoiceOver en de eigen stem kunnen tegelijk praten.
+- `navigator.audioSession.type = 'ambient'` (Safari 16.4+) laat het geluid de
+  stil-schakelaar volgen; ongetest op een echt toestel.
 - Unlocks worden niet opgeslagen: voortgang wissen zet alles weer op slot; de kast-sleutel
   wordt dan ook gewist. Een gekozen maar vergrendeld item valt terug op de standaard.
 - `player.svg`: de kleuren van de gele helm en het oranje shirt worden door `hero.ts`

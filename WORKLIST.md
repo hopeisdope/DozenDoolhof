@@ -4,6 +4,9 @@ Read at the start of every session; update when something is done or added.
 
 ## Now
 
+- [ ] Gebruiker beoordeelt fase 8 op een echt toestel: klinken de geluidjes prettig (niet
+      irritant bij veel lopen), welke Nederlandse stem kiest iOS en is die verstaanbaar, volgt
+      het geluid de stil-schakelaar, en is de stem standaard aan de goede keuze?
 - [ ] Gebruiker beoordeelt fase 7: beloningen op de "Gelukt!"-kaart en de kledingkast, op
       iPhone en iPad (vooral: snapt een kind van 4–6 de slotjes en balkjes zonder uitleg, en
       zijn de mijlpalen niet te ver uit elkaar?)
@@ -18,7 +21,6 @@ Read at the start of every session; update when something is done or added.
 
 Gekozen volgorde (projectfases; niet de nummers van de oude featurelijst):
 
-- [ ] Fase 8: optionele geluidseffecten en korte gesproken feedback
 - [ ] Fase 9: PWA en offline spelen
 
 ## Later (nog niet ingepland)
@@ -31,7 +33,7 @@ Gekozen volgorde (projectfases; niet de nummers van de oude featurelijst):
 
 - Moodboard als bestand in de repo zetten (bijv. `docs/art/`) zodat latere sessies het
   kunnen raadplegen? Het staat nu alleen als upload in de fase-0/2-sessie.
-- Geluid en muziek: gewenst, en waar komen ze vandaan?
+- Geluid: nu zelf gesynthetiseerde effecten zonder muziek. Achtergrondmuziek gewenst?
 - Interface: Nederlandse tekst of zo veel mogelijk zonder tekst?
 - Sterrennorm (3 = hoogstens de zetten van de bekende oplossing, 2 = tot 1,5×) goed voor een
   kind van zes, of milder?
@@ -65,5 +67,10 @@ Gekozen volgorde (projectfases; niet de nummers van de oude featurelijst):
       spulletje staat op de "Gelukt!"-kaart en wordt meteen aangetrokken; kledingkast vanaf het
       startscherm met teller voor nieuwe spulletjes; keuze bewaard onder
       `dozendoolhof.wardrobe` (versie 1, defensief ingelezen); wissen wist ook de kast
+- [x] Fase 8 (branch `phase-8-sound-feedback`): korte geluidjes via Web Audio (gesynthetiseerd,
+      geen bestanden; voetstappen gevarieerd en afgeremd), stem via de ingebouwde Web Speech
+      API (alleen Nederlandse stem, alleen bij winst, vastgelopen doos en "zo lukt het niet
+      meer"), instellingen Geluiden/Stem apart (`dozendoolhof.settings`), niets vóór het
+      eerste gebaar, iOS volgt de stil-schakelaar; overlays respecteren nu reduced motion
 - [x] Werkafspraken bijgewerkt (project-start): CLAUDE.md met Session start, "Git: merge to
       main after every commit", End of task en Compact instructions
