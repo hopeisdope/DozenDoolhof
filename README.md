@@ -4,10 +4,11 @@ Een vrolijke, kindvriendelijke Sokoban-achtige puzzelgame voor iPhone en iPad, g
 een kind van zes jaar. Duw de dozen naar de blauwe doelen. Er is geen tijdsdruk en je hoeft
 niet te kunnen lezen om te spelen.
 
-> **Status: fase 5.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
+> **Status: fase 6.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
 > veertig levels, direct te kiezen vanaf het startscherm, zonder tutorial. Glanzende
 > cartoonstijl met een geanimeerd bouwvakkertje. Gehaalde levels en sterren blijven bewaard
-> in de browser (localStorage). Een optionele lampknop geeft hints in drie stapjes.
+> in de browser (localStorage). Een optionele lampknop geeft hints in drie stapjes. Een doos
+> die echt vastzit krijgt een slotje, met knoppen voor één zet terug en opnieuw proberen.
 
 Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 
@@ -47,6 +48,28 @@ je de getoonde zet, dan schuift de hint mee; doe je iets anders, undo of opnieuw
 dan verdwijnt hij. De hint wordt berekend vanaf de stand op het bord (in een Web Worker, zodat
 het spel niet hapert). Kan het level vanaf hier niet meer worden opgelost, dan verschijnt
 "Zo lukt het niet meer" met knoppen voor één zet terug en helemaal opnieuw.
+
+### Vastgelopen dozen
+
+Duw je een doos ergens waar ze nooit meer naar een doel kan, dan krijgt die doos meteen een
+rood rondje met een slotje en wiebelt ze even. Onder het bord (liggend: links naast het bord)
+verschijnt een rode melding "Deze doos zit vast" met twee grote knoppen: **één zet terug** en
+**opnieuw proberen**. Er gebeurt niets vanzelf: je mag gewoon verder spelen, de melding
+blokkeert het bord niet en kost geen zetten of sterren. Zodra undo of opnieuw beginnen de doos
+bevrijdt, verdwijnt de melding. De lampknop wijst dan naar de melding in plaats van een hint te
+zoeken.
+
+De game waarschuwt alleen als het zeker is (bewezen, nooit een gok):
+
+- **Dode cel**: geen enkele reeks duwen brengt een doos vanaf deze cel nog op een doel, zelfs
+  op een leeg bord (een hoek zonder doel, of langs een muur waar geen doel aan ligt).
+- **Bevroren doos**: de doos kan in geen enkele richting meer bewegen, geblokkeerd door muren
+  en door andere dozen die zelf ook vastzitten (twee dozen naast elkaar tegen een muur, een
+  blok van 2×2, …), en staat niet op een doel.
+
+Een doos op een doel telt nooit als vastgelopen. Ingewikkeldere gevallen (bijvoorbeeld als het
+bouwvakkertje nergens meer achter een doos kan komen) krijgen geen slotje; die vindt de
+hintknop met "Zo lukt het niet meer".
 
 ### Voortgang
 

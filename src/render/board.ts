@@ -98,6 +98,32 @@ export class BoardView {
     }
   }
 
+  /**
+   * Marks the boxes on `cells` as stuck (a padlock badge and a short wobble when a box
+   * becomes stuck); every other box loses the mark. Call after `update()`.
+   */
+  setStuck(cells: readonly number[]): void {
+    for (const box of this.boxes) {
+      const stuck = cells.includes(box.cell);
+      const wasStuck = box.element.classList.contains('is-stuck');
+      box.element.classList.toggle('is-stuck', stuck);
+      box.element.dataset.stuck = String(stuck);
+      if (stuck !== wasStuck) this.wobble(box.element, stuck);
+    }
+  }
+
+  /** Wobbles the stuck boxes again, to point them out. */
+  wobbleStuck(): void {
+    for (const box of this.boxes) {
+      if (box.element.classList.contains('is-stuck')) this.wobble(box.element, true);
+    }
+  }
+
+  private wobble(box: HTMLElement, on: boolean): void {
+    const sprite = box.querySelector('.piece__sprite');
+    if (sprite) restartClass(sprite, 'is-wobbling', on);
+  }
+
   /** Short wiggle to show that a move is blocked. */
   bump(): void {
     const sprite = this.player.querySelector('.piece__sprite');
@@ -111,6 +137,13 @@ export class BoardView {
     const sprite = document.createElement('div');
     sprite.className = 'piece__sprite';
     piece.append(sprite);
+    if (kind === 'box') {
+      const badge = document.createElement('div');
+      badge.className = 'piece__stuck';
+      badge.dataset.testid = 'stuck-badge';
+      piece.append(badge);
+      piece.dataset.stuck = 'false';
+    }
     this.element.append(piece);
     return piece;
   }
