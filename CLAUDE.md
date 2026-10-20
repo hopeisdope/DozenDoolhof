@@ -61,13 +61,20 @@ from the same state.
   elk veertig levels met een bekende LURD-oplossing. ID's (`easy-01`…`easy-40`) zijn stabiel
   en sleutel van de voortgang; de volgorde in het bestand is de speelvolgorde.
 - `src/solver/solver.ts`: BFS-oplosser over duwen (fewest pushes), met dode-cel-snoei.
-  Gebruikt door de tests; bruikbaar voor hints in een latere fase.
+  `search()` zoekt vanaf elke spelstatus (opgelost / onoplosbaar / budget op); gebruikt
+  door de tests en de hints.
+- `src/hints/`: `hint.ts` (pure hintkeuze uit een oplossing), `controller.ts` (hintstappen
+  1–3, wist verouderde hints, negeert late zoekresultaten; zonder DOM) en
+  `worker-solver.ts`/`solver-worker.ts` (oplosser in een Web Worker, terugval op de main
+  thread). Hints veranderen nooit de spelstatus, zetten, sterren of voortgang.
 - `src/render/board.ts`: vloer- en doeltegels in een CSS-grid, daarboven één muurlaag (SVG),
   speler en dozen als absoluut gepositioneerde stukken met `transform`. Alles schaalt via
   container query units; er is geen resize-code.
 - `src/render/walls.ts`: muur-autotiling. Elke muurcel wordt een baksteen waarvan de vorm
   afhangt van de vier buren (voeg naar een muur, dikke contour naar buiten, grote bocht op de
   buitenhoek). Pure functies, getest in `tests/render/`.
+- `src/render/hint-layer.ts`: tekent hints boven het bord (omlijning, doelring, pijl,
+  ghost-preview); `pointer-events: none`.
 - `src/render/motion.ts`: leidt kijkrichting, loopanimatie en duwhouding af uit twee
   opeenvolgende spelstatussen (ook bij undo en herstart).
 - `src/assets/`: handgemaakte SVG's. Tegels en kisten zijn CSS-achtergronden; `player.svg`

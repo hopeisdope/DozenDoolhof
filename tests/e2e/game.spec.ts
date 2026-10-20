@@ -413,6 +413,239 @@ test.describe('touch play (mobile emulation)', () => {
   });
 });
 
+test.describe('hints', () => {
+  const hintButton = (page: Page) => page.getByTestId('hint-button');
+  const layer = (page: Page) => page.getByTestId('hint-layer');
+  const closeButton = (page: Page) => page.getByRole('button', { name: 'Hint sluiten' });
+
+  /** Positions of the player and boxes, to prove a hint never changes the board. */
+  async function boardState(page: Page): Promise<string> {
+    return page
+      .getByTestId('board')
+      .evaluate((board) =>
+        [...board.querySelectorAll<HTMLElement>('.piece')]
+          .map((piece) => `${piece.dataset.testid}:${piece.dataset.x},${piece.dataset.y}`)
+          .join(' '),
+      );
+  }
+
+  test('the hint button is finger-sized and on screen, also on phones', async ({ page }) => {
+    for (const tier of TIERS) {
+      await page.goto(`./?tier=${tier.id}&level=${tier.levels.length}`);
+      await expect(hintButton(page)).toBeInViewport({ ratio: 1 });
+      await expect(hintButton(page)).toHaveAccessibleName('Hint');
+      const box = (await hintButton(page).boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(60);
+      expect(box.height).toBeGreaterThanOrEqual(60);
+      for (const name of ['Naar de levels', 'Ongedaan maken', 'Opnieuw beginnen']) {
+        await expect(page.getByRole('button', { name })).toBeInViewport({ ratio: 1 });
+      }
+    }
+  });
+
+  test('three taps show three ever clearer hints without changing the board', async ({ page }) => {
+    await page.goto('./?tier=hard&level=10');
+    const before = await boardState(page);
+    await expect(layer(page)).toBeHidden();
+
+    await hintButton(page).click();
+    await expect(layer(page)).toHaveAttribute('data-stage', '1');
+    await expect(layer(page).getByTestId('hint-box')).toHaveCount(1);
+    await expect(layer(page).getByTestId('hint-goal')).toHaveCount(1);
+    await expect(layer(page).getByTestId('hint-arrow')).toHaveCount(0);
+    await expect(layer(page).getByTestId('hint-ghost-player')).toHaveCount(0);
+    await expect(closeButton(page)).toBeInViewport({ ratio: 1 });
+
+    await hintButton(page).click();
+    await expect(layer(page)).toHaveAttribute('data-stage', '2');
+    await expect(layer(page).getByTestId('hint-arrow')).toHaveCount(1);
+    await expect(layer(page).getByTestId('hint-ghost-player')).toHaveCount(0);
+
+    await hintButton(page).click();
+    await expect(layer(page)).toHaveAttribute('data-stage', '3');
+    await expect(layer(page).getByTestId('hint-ghost-player')).toHaveCount(1);
+    await expect(layer(page).getByTestId('hint-ghost-box')).toHaveCount(1);
+    await expect(layer(page).getByTestId('hint-route')).toHaveCount(1);
+    await expect(hintButton(page)).toHaveAccessibleName('Hint nog eens bekijken');
+
+    // A fourth tap replays the preview and stays at stage 3.
+    await hintButton(page).click();
+    await expect(layer(page)).toHaveAttribute('data-stage', '3');
+
+    expect(await boardState(page)).toBe(before);
+    await expect(moves(page)).toHaveText('Zetten: 0');
+    await expect(page.getByRole('button', { name: 'Ongedaan maken' })).toBeDisabled();
+
+    await closeButton(page).click();
+    await expect(layer(page)).toBeHidden();
+    await expect(closeButton(page)).toBeHidden();
+    await expect(hintButton(page)).toHaveAccessibleName('Hint');
+    expect(await boardState(page)).toBe(before);
+  });
+
+  test('the box hint points at a real box and the goal hint at a real goal', async ({ page }) => {
+    await page.goto(EASY_1);
+    await hintButton(page).click();
+    await hintButton(page).click();
+    const box = page.getByTestId('box');
+    const marker = layer(page).getByTestId('hint-box');
+    await expect(marker).toHaveAttribute('data-x', (await box.getAttribute('data-x'))!);
+    await expect(marker).toHaveAttribute('data-y', (await box.getAttribute('data-y'))!);
+    await expect(layer(page).getByTestId('hint-arrow')).toHaveAttribute('data-direction', 'right');
+  });
+  test('with reduced motion the preview stands still at its end', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(EASY_1);
+    for (let stage = 1; stage <= 3; stage++) await hintButton(page).click();
+    const ghost = layer(page).getByTestId('hint-ghost-player');
+    await expect(ghost).toHaveCount(1);
+    expect(await ghost.evaluate((el) => el.getAnimations().length)).toBe(0);
+    // Level 1 is 'rRR': the preview ends with the worker three cells further right.
+    expect(await ghost.evaluate((el) => el.style.transform)).toBe('translate(400%, 200%)');
+  });
+});
+
+test.describe('hints while playing (desktop)', () => {
+  test.skip(({ isMobile }) => isMobile, 'keyboard tests run on the desktop project');
+
+  const hintButton = (page: Page) => page.getByTestId('hint-button');
+  const layer = (page: Page) => page.getByTestId('hint-layer');
+  const notice = (page: Page) => page.getByTestId('hint-notice');
+
+  test('after a hint you can close it and play on normally', async ({ page }) => {
+    await page.goto(EASY_1);
+    await hintButton(page).click();
+    await page.getByRole('button', { name: 'Hint sluiten' }).click();
+    await expect(layer(page)).toBeHidden();
+    await playSolution(page, solutionOf(0, 0));
+    await expect(overlay(page)).toBeVisible();
+  });
+
+  test('a move along the hint updates it; another move removes it', async ({ page }) => {
+    await page.goto(EASY_1); // solution rRR
+    await hintButton(page).click();
+    await hintButton(page).click();
+    await expect(layer(page).getByTestId('hint-stand')).toHaveCount(1);
+    await page.keyboard.press('ArrowRight'); // follows the hint
+    await expect(layer(page)).toHaveAttribute('data-stage', '2');
+    // The player now stands at the push position: no "stand here" ring any more.
+    await expect(layer(page).getByTestId('hint-stand')).toHaveCount(0);
+    await page.keyboard.press('ArrowUp'); // its own way
+    await expect(layer(page)).toBeHidden();
+    await expect(layer(page).locator('*')).toHaveCount(0);
+  });
+
+  test('a hint after the player’s own moves is computed for that state', async ({ page }) => {
+    await page.goto(EASY_1);
+    await playSolution(page, 'ur'); // off the stored solution
+    await hintButton(page).click();
+    await expect(layer(page)).toHaveAttribute('data-stage', '1');
+    await hintButton(page).click();
+    await hintButton(page).click();
+    await expect(layer(page)).toHaveAttribute('data-stage', '3');
+    // The route starts from where the player is now.
+    const steps = Number(await layer(page).getByTestId('hint-route').getAttribute('data-steps'));
+    expect(steps).toBeGreaterThan(1);
+    await expect(moves(page)).toHaveText('Zetten: 2');
+  });
+
+  test('undo, restart and a level change leave no old hint behind', async ({ page }) => {
+    await page.goto(EASY_1);
+    await page.keyboard.press('ArrowUp');
+    await hintButton(page).click();
+    await expect(layer(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Ongedaan maken' }).click();
+    await expect(layer(page)).toBeHidden();
+
+    await page.keyboard.press('ArrowUp');
+    await hintButton(page).click();
+    await expect(layer(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Opnieuw beginnen' }).click();
+    await expect(layer(page)).toBeHidden();
+
+    await hintButton(page).click();
+    await expect(layer(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Naar de levels' }).click();
+    await page.getByRole('button', { name: /^Level 2, Makkelijk/ }).click();
+    await expect(page.getByRole('heading', { name: 'Level 2' })).toBeVisible();
+    await expect(layer(page)).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Hint sluiten' })).toBeHidden();
+    await expect(hintButton(page)).toHaveAccessibleName('Hint');
+  });
+
+  test('following the hints to the end wins with full stars; no hint stays on top', async ({
+    page,
+  }) => {
+    await page.goto('./?tier=medium&level=1');
+    for (let stage = 1; stage <= 3; stage++) await hintButton(page).click();
+    // Play the first move of the stage-3 preview; following it keeps the hint up to date.
+    const route = layer(page).getByTestId('hint-route');
+    for (let i = 0; i < 200 && (await route.count()) > 0; i++) {
+      const preview = (await route.getAttribute('data-preview'))!;
+      const before = await moves(page).textContent();
+      await page.keyboard.press(ARROW_KEYS[preview[0]!.toLowerCase()]!);
+      await expect(moves(page)).not.toHaveText(before!);
+    }
+    await expect(overlay(page)).toBeVisible();
+    await expect(layer(page)).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Hint sluiten' })).toBeHidden();
+    await expect(page.getByTestId('win-stars')).toHaveAttribute('data-stars', '3');
+    const saved = await page.evaluate(() => localStorage.getItem('dozendoolhof.progress'));
+    expect(JSON.parse(saved!)).toEqual({ version: 1, bestStars: { 'medium-01': 3 } });
+  });
+
+  test('a stuck board gets a friendly notice with undo and restart', async ({ page }) => {
+    await page.goto(EASY_1);
+    await playSolution(page, 'drrU'); // the box against the top wall: no way back
+    await expect(moves(page)).toHaveText('Zetten: 4');
+    await hintButton(page).click();
+    await expect(notice(page)).toBeVisible();
+    await expect(notice(page)).toContainText('Zo lukt het niet meer');
+    await expect(layer(page)).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 4');
+
+    await page.getByRole('button', { name: 'Eén zet terug' }).click();
+    await expect(notice(page)).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 3');
+
+    await page.keyboard.press('ArrowUp');
+    await hintButton(page).click();
+    await expect(notice(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Helemaal opnieuw' }).click();
+    await expect(notice(page)).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 0');
+  });
+
+  test('h asks for a hint and Escape closes it before leaving the level', async ({ page }) => {
+    await page.goto(EASY_1);
+    await page.keyboard.press('h');
+    await expect(layer(page)).toHaveAttribute('data-stage', '1');
+    await page.keyboard.press('Escape');
+    await expect(layer(page)).toBeHidden();
+    await expect(page.getByTestId('board')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('level-select')).toBeVisible();
+  });
+});
+
+test.describe('hints by touch (mobile emulation)', () => {
+  test.skip(({ isMobile }) => !isMobile, 'touch tests run on the mobile projects');
+
+  test('tapping through the hints and closing them leaves the board as it was', async ({
+    page,
+  }) => {
+    await page.goto(EASY_1);
+    for (let stage = 1; stage <= 3; stage++) {
+      await page.getByTestId('hint-button').tap();
+      await expect(page.getByTestId('hint-layer')).toHaveAttribute('data-stage', String(stage));
+    }
+    await page.getByRole('button', { name: 'Hint sluiten' }).tap();
+    await expect(page.getByTestId('hint-layer')).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 0');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+});
+
 test.describe('layout', () => {
   const all = TIERS.flatMap((tier) =>
     tier.definitions.map((definition, index) => ({ tier, definition, index })),
@@ -429,8 +662,10 @@ test.describe('layout', () => {
       // Cells stay large enough to see and swipe on a phone.
       expect(board.width / (await cellColumns(page))).toBeGreaterThanOrEqual(28);
 
-      for (const name of ['Ongedaan maken', 'Opnieuw beginnen']) {
-        await expect(page.getByRole('button', { name })).toBeInViewport({ ratio: 1 });
+      for (const name of ['Ongedaan maken', 'Opnieuw beginnen', 'Hint']) {
+        await expect(page.getByRole('button', { name, exact: true })).toBeInViewport({
+          ratio: 1,
+        });
       }
       await expect(page.getByRole('heading', { name: `Level ${index + 1}` })).toBeInViewport({
         ratio: 1,
