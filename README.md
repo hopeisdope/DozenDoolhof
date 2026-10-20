@@ -4,13 +4,14 @@ Een vrolijke, kindvriendelijke Sokoban-achtige puzzelgame voor iPhone en iPad, g
 een kind van zes jaar. Duw de dozen naar de blauwe doelen. Er is geen tijdsdruk en je hoeft
 niet te kunnen lezen om te spelen.
 
-> **Status: fase 7.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
+> **Status: fase 8.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
 > veertig levels, direct te kiezen vanaf het startscherm, zonder tutorial. Glanzende
 > cartoonstijl met een geanimeerd bouwvakkertje. Gehaalde levels en sterren blijven bewaard
 > in de browser (localStorage). Een optionele lampknop geeft hints in drie stapjes. Een doos
 > die echt vastzit krijgt een slotje, met knoppen voor één zet terug en opnieuw proberen.
 > Gehaalde levels leveren helmen, shirts, stickers en gereedschap op voor het bouwvakkertje,
-> te kiezen in de kledingkast.
+> te kiezen in de kledingkast. Korte geluidjes en een vriendelijke stem (beide uit te zetten)
+> helpen kinderen die nog niet lezen.
 
 Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 
@@ -26,6 +27,7 @@ Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 | Hint             | Blauwe knop met het lampje (tik nog eens)       | `h`              |
 | Hint sluiten     | Ronde grijze knop met het kruisje               | Escape           |
 | Kledingkast      | Paarse knop met het bouwvakkertje (startscherm) | Escape = terug   |
+| Geluid en stem   | Grijze luidsprekerknop (startscherm)            | Escape = sluiten |
 
 Het startscherm toont de drie niveaus en de veertig levels van het gekozen niveau (op een
 telefoon scrolt alleen het levelraster). Een gehaald level krijgt één tot drie sterren: drie
@@ -111,6 +113,36 @@ beloningen waren, krijgt ze dus meteen (met het rode bolletje op de kledingkastk
 bouwvakkertje trekt ze pas aan als je dat zelf kiest). Nieuwe spulletjes toevoegen: een regel
 in `src/rewards/catalog.ts` en een tekening in `src/render/hero.ts`.
 
+### Geluid en stem
+
+- **Geluidjes.** Kort en zacht, gemaakt met de Web Audio API (er zijn geen audiobestanden):
+  een stapje (steeds iets hoger of lager, en nooit vaker dan zo'n elf keer per seconde),
+  duwen, een doos op een doel ("ding"), tegen een muur lopen, ongedaan maken, een deuntje bij
+  "Gelukt!", een zacht "oh-oh" als er een doos vastzit en een glinster bij een nieuwe
+  beloning.
+- **Stem.** De ingebouwde spraak van het apparaat (Web Speech API; geen account, sleutel of
+  kosten). Hij praat alleen op een paar momenten die een kind dat nog niet leest anders mist:
+  na het deuntje bij een gewonnen level (wisselend "Gelukt!", "Goed gedaan!", "Super!",
+  "Knap hoor!", met "Je hebt iets nieuws!" als er een beloning bij is), bij een vastgelopen
+  doos ("Oei, deze doos zit vast.") en als de hint meldt dat het niet meer lukt. Nooit bij
+  gewone zetten, nooit twee zinnen door elkaar; ongedaan maken, een ander level, terug naar
+  de levels of de app naar de achtergrond brengen breekt hem af. Hij spreekt alleen met een
+  Nederlandse stem; heeft het apparaat die niet, dan blijft hij stil en staat de schakelaar
+  grijs met "Geen Nederlandse stem op dit apparaat".
+- **Instellingen.** Beide staan standaard aan. De grijze luidsprekerknop onderaan het
+  startscherm opent twee grote schakelaars: **Geluiden** en **Stem**, los van elkaar uit te
+  zetten. Staat het geluid uit, dan toont de knop een doorgestreepte luidspreker. De keuze
+  wordt meteen bewaard onder `dozendoolhof.settings` en blijft staan als je de voortgang
+  wist.
+- **Browserregels.** Er klinkt niets voordat je één keer hebt getikt of een toets hebt
+  ingedrukt; alles wat klinkt is een reactie op wat het kind doet. Op iPhone en iPad
+  (Safari 16.4 en nieuwer) volgt het geluid de stil-schakelaar en mag muziek van een andere
+  app doorspelen. Zonder Web Audio of spraak speelt de game gewoon, zonder geluid.
+
+Niet automatisch te testen (handmatig op een echt toestel): hoe de geluiden klinken, welke
+Nederlandse stem iOS kiest en hoe die klinkt, de stil-schakelaar, en het samenspel met
+VoiceOver (die leest de meldingen zelf ook voor; zet de stem dan uit).
+
 ### Voortgang
 
 De voortgang staat in `localStorage` onder de sleutel `dozendoolhof.progress`, per stabiele
@@ -181,12 +213,13 @@ src/
   levels/       levelparser, niveaus, leveldefinities per niveau (tiers/), LURD-oplossingen
   solver/       Sokoban-oplosser (valideert levels, meet moeilijkheid, zoekt voor hints)
   hints/        hintkeuze, hintstappen en de oplosser in een Web Worker
+  audio/        geluidjes (Web Audio), stem (Web Speech) en wanneer het spel iets laat horen
   rewards/      beloningen: catalogus, ontgrendeling uit de voortgang, kledingkast-opslag
   assets/       SVG-artwork: tegels, kisten, bouwvakkertje, UI
   render/       DOM-weergave van het bord, muur-autotiling, spelerhouding, hintlaag,
                 bouwvakkertje met outfit
-  ui/           startscherm, spelscherm, kledingkast, voortgang (localStorage), swipe en
-                toetsenbord
+  ui/           startscherm, spelscherm, kledingkast, geluidsinstellingen, voortgang
+                (localStorage), swipe en toetsenbord
   styles/       CSS
   main.ts       startpunt
 tests/
@@ -196,6 +229,7 @@ tests/
   solver/       unit tests voor de oplosser
   hints/        unit tests voor hintkeuze en hintstappen
   rewards/      unit tests voor beloningen, ontgrendeling en kledingkast-opslag
+  audio/        unit tests voor geluidjes, stem en wanneer ze klinken
   render/       unit tests voor muren, spelerhouding en het bouwvakkertje met outfit
   e2e/          Playwright-tests
 ```

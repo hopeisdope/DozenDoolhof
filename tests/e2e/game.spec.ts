@@ -1163,3 +1163,263 @@ test.describe('wardrobe by touch (mobile emulation)', () => {
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
   });
 });
+
+/**
+ * Records sounds (`dozendoolhof:sound` events) and replaces speech synthesis with a fake
+ * that writes down what would be said; Chromium in CI has no Dutch voice.
+ */
+async function listenToAudio(page: Page, { voice = true } = {}): Promise<void> {
+  await page.addInitScript((withVoice) => {
+    const scope = window as unknown as {
+      __cues: string[];
+      __spoken: string[];
+      __cancels: number;
+      SpeechSynthesisUtterance: unknown;
+    };
+    scope.__cues = [];
+    scope.__spoken = [];
+    scope.__cancels = 0;
+    window.addEventListener('dozendoolhof:sound', (event) => {
+      scope.__cues.push((event as CustomEvent<string>).detail);
+    });
+    const voices = withVoice ? [{ lang: 'nl-NL', name: 'Test', localService: true }] : [];
+    const synth = {
+      speak: (utterance: { text: string }) => {
+        if (utterance.text) scope.__spoken.push(utterance.text);
+      },
+      cancel: () => {
+        scope.__cancels += 1;
+      },
+      getVoices: () => voices,
+      addEventListener: () => undefined,
+    };
+    Object.defineProperty(window, 'speechSynthesis', { configurable: true, get: () => synth });
+    scope.SpeechSynthesisUtterance = class {
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      volume = 1;
+      voice = null;
+      constructor(readonly text: string) {}
+    };
+  }, voice);
+}
+
+const cues = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __cues: string[] }).__cues);
+const spoken = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
+
+test.describe('sound and voice (desktop)', () => {
+  test.skip(({ isMobile }) => isMobile, 'keyboard tests run on the desktop project');
+
+  test('moves make short sounds and a win gets a tune and praise', async ({ page }) => {
+    await listenToAudio(page);
+    await page.goto(EASY_1);
+    expect(await cues(page)).toEqual([]); // nothing plays by itself
+    await page.keyboard.press('ArrowLeft'); // wall
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('z');
+    await expect.poll(() => cues(page)).toEqual(['bump', 'step', 'undo']);
+    await page.waitForTimeout(150); // footsteps closer together than 90 ms make one sound
+    await playSolution(page, solutionOf(0, 0)); // rRR
+    await expect(overlay(page)).toBeVisible();
+    // The first win also unlocks a reward: a sparkle and a word about it.
+    await expect
+      .poll(() => cues(page))
+      .toEqual(['bump', 'step', 'undo', 'step', 'push', 'win', 'reward']);
+    await expect.poll(() => spoken(page)).toEqual(['Gelukt! Je hebt iets nieuws!']);
+    // The voice waits for the tune instead of talking over it.
+    await page.getByRole('button', { name: 'Volgende level' }).click();
+    await playSolution(page, solutionOf(0, 1));
+    await expect.poll(() => spoken(page)).toEqual(['Gelukt! Je hebt iets nieuws!', 'Goed gedaan!']);
+  });
+
+  test('the voice says a box is stuck, and is cut off when leaving the level', async ({ page }) => {
+    await listenToAudio(page);
+    await page.goto(EASY_1);
+    await playSolution(page, 'drrU');
+    await expect(page.getByTestId('stuck-notice')).toBeVisible();
+    await expect.poll(() => cues(page)).toContain('stuck');
+    await expect.poll(() => spoken(page)).toEqual(['Oei, deze doos zit vast.']);
+
+    // Undo, push it stuck again and leave in the same moment: nothing is said any more.
+    await page.keyboard.press('z');
+    const cancels = await page.evaluate(
+      () => (window as unknown as { __cancels: number }).__cancels,
+    );
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+    await expect(page.getByTestId('level-select')).toBeVisible();
+    await page.waitForTimeout(800);
+    expect(await spoken(page)).toEqual(['Oei, deze doos zit vast.']);
+    expect(
+      await page.evaluate(() => (window as unknown as { __cancels: number }).__cancels),
+    ).toBeGreaterThan(cancels);
+  });
+
+  test('sound and voice switch off separately and stay off after a reload', async ({ page }) => {
+    await listenToAudio(page);
+    await page.goto('./');
+    const settingsButton = page.getByTestId('settings-button');
+    await expect(settingsButton).toHaveAccessibleName('Geluid en stem');
+    await settingsButton.click();
+    const sound = page.getByRole('switch', { name: 'Geluiden' });
+    const voice = page.getByRole('switch', { name: 'Stem' });
+    await expect(sound).toHaveAttribute('aria-checked', 'true');
+    await expect(voice).toHaveAttribute('aria-checked', 'true');
+    await expect(voice).toBeEnabled();
+    await sound.click();
+    await expect(sound).toHaveAttribute('aria-checked', 'false');
+    await page.getByRole('button', { name: 'Klaar' }).click();
+    await expect(settingsButton).toHaveAccessibleName('Geluid en stem, geluid uit');
+    await expect(settingsButton).toBeFocused();
+    expect(JSON.parse((await storageItem(page, 'dozendoolhof.settings'))!)).toEqual({
+      version: 1,
+      sound: false,
+      speech: true,
+    });
+
+    // Sound off: the game is silent, the voice still praises.
+    await page.reload();
+    await page.getByTestId('level-button').first().click();
+    await playSolution(page, solutionOf(0, 0));
+    await expect(overlay(page)).toBeVisible();
+    await expect.poll(() => spoken(page)).toHaveLength(1);
+    expect(await cues(page)).toEqual([]);
+
+    // Voice off too, sound back on: the switch plays a sample, the win only a tune.
+    await page.goto('./');
+    await page.getByTestId('settings-button').click();
+    await page.getByRole('switch', { name: 'Stem' }).click();
+    await page.getByRole('switch', { name: 'Geluiden' }).click();
+    await expect.poll(() => cues(page)).toEqual(['goal']);
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('settings')).toBeHidden();
+    await page.goto(EASY_1);
+    await playSolution(page, solutionOf(0, 0));
+    await expect(overlay(page)).toBeVisible();
+    await expect.poll(() => cues(page)).toEqual(['step', 'push', 'win']);
+    await page.waitForTimeout(1200);
+    expect(await spoken(page)).toEqual([]);
+    // Progress is untouched by any of this.
+    expect(JSON.parse((await storageItem(page, 'dozendoolhof.progress'))!)).toEqual({
+      version: 1,
+      bestStars: { 'easy-01': 3 },
+    });
+  });
+
+  test('without Web Audio and speech the game plays as usual', async ({ page }) => {
+    await page.addInitScript(() => {
+      const scope = window as unknown as Record<string, unknown>;
+      for (const name of [
+        'AudioContext',
+        'webkitAudioContext',
+        'speechSynthesis',
+        'SpeechSynthesisUtterance',
+      ]) {
+        Object.defineProperty(window, name, { configurable: true, value: undefined });
+        delete scope[name];
+      }
+    });
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto('./');
+    await page.getByTestId('settings-button').click();
+    await expect(page.getByRole('switch', { name: 'Stem' })).toBeDisabled();
+    await expect(page.getByText('Geen Nederlandse stem op dit apparaat')).toBeVisible();
+    await page.getByRole('button', { name: 'Klaar' }).click();
+    await page.goto(EASY_1);
+    await playSolution(page, 'drrU');
+    await expect(page.getByTestId('stuck-notice')).toBeVisible();
+    await page.getByRole('button', { name: 'Opnieuw beginnen' }).click();
+    await playSolution(page, solutionOf(0, 0));
+    await expect(overlay(page)).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('a device without a Dutch voice never speaks', async ({ page }) => {
+    await listenToAudio(page, { voice: false });
+    await page.goto(EASY_1);
+    await playSolution(page, solutionOf(0, 0));
+    await expect(overlay(page)).toBeVisible();
+    await page.waitForTimeout(1200);
+    expect(await spoken(page)).toEqual([]);
+    expect(await cues(page)).toContain('win');
+  });
+});
+
+test.describe('sound settings on every screen', () => {
+  test('the settings fit the screen with finger-sized switches', async ({ page }) => {
+    await page.goto('./');
+    const button = page.getByTestId('settings-button');
+    await expect(button).toBeInViewport({ ratio: 1 });
+    const buttonBox = (await button.boundingBox())!;
+    expect(buttonBox.width).toBeGreaterThanOrEqual(60);
+    for (const other of [page.getByTestId('wardrobe-button'), page.getByTestId('reset-progress')]) {
+      const box = (await other.boundingBox())!;
+      const overlaps =
+        buttonBox.x < box.x + box.width &&
+        box.x < buttonBox.x + buttonBox.width &&
+        buttonBox.y < box.y + box.height &&
+        box.y < buttonBox.y + buttonBox.height;
+      expect(overlaps).toBe(false);
+    }
+    await button.click();
+    // Measure the card after it has popped in.
+    await page
+      .getByTestId('settings')
+      .evaluate((dialog) =>
+        Promise.all(dialog.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+      );
+    for (const control of [
+      page.getByRole('switch', { name: 'Geluiden' }),
+      page.getByRole('switch', { name: 'Stem' }),
+      page.getByRole('button', { name: 'Klaar' }),
+    ]) {
+      await expect(control).toBeInViewport({ ratio: 1 });
+      const box = (await control.boundingBox())!;
+      expect(box.height).toBeGreaterThanOrEqual(60);
+      expect(box.width).toBeGreaterThanOrEqual(60);
+    }
+    // The words fit inside their switch.
+    const label = page.getByRole('switch', { name: 'Geluiden' }).locator('.setting__label');
+    expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    const viewport = page.viewportSize()!;
+    const scroll = await page.evaluate(() => ({
+      height: document.documentElement.scrollHeight,
+      width: document.documentElement.scrollWidth,
+    }));
+    expect(scroll.height).toBeLessThanOrEqual(viewport.height);
+    expect(scroll.width).toBeLessThanOrEqual(viewport.width);
+  });
+
+  test('with reduced motion the switches do not slide', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('./');
+    await page.getByTestId('settings-button').click();
+    const knob = page.getByRole('switch', { name: 'Geluiden' }).locator('.setting__knob');
+    expect(await knob.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe('0s');
+  });
+});
+
+test.describe('sound settings by touch (mobile emulation)', () => {
+  test.skip(({ isMobile }) => !isMobile, 'touch tests run on the mobile projects');
+
+  test('tapping a switch turns the sound off and back on', async ({ page }) => {
+    await listenToAudio(page);
+    await page.goto('./');
+    await page.getByTestId('settings-button').tap();
+    const sound = page.getByRole('switch', { name: 'Geluiden' });
+    await sound.tap();
+    await expect(sound).toHaveAttribute('aria-checked', 'false');
+    await sound.tap();
+    await expect(sound).toHaveAttribute('aria-checked', 'true');
+    await expect.poll(() => cues(page)).toEqual(['goal']);
+    await page.getByRole('button', { name: 'Klaar' }).tap();
+    await expect(page.getByTestId('settings')).toBeHidden();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+});

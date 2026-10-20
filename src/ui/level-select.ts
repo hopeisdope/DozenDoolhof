@@ -8,8 +8,8 @@ import type { Progress } from './progress';
 /**
  * Start screen: pick a tier (Makkelijk, Gemiddeld, Moeilijk) and one of its levels.
  * Every tier and level is open from the start; there is no tutorial. Below the levels,
- * the worker is the button to the wardrobe (with a count of new rewards), and a
- * muted button wipes all saved progress and rewards after a confirmation.
+ * the worker is the button to the wardrobe (with a count of new rewards); muted buttons
+ * open the sound settings and wipe all saved progress and rewards after a confirmation.
  */
 export class LevelSelect {
   readonly element = document.createElement('section');
@@ -30,6 +30,7 @@ export class LevelSelect {
     private readonly rewards: Rewards,
     private readonly onPick: (tierIndex: number, levelIndex: number) => void,
     private readonly onWardrobe: () => void,
+    settingsPanel?: { readonly button: HTMLElement; readonly element: HTMLElement },
   ) {
     this.element.className = 'screen select';
     this.element.dataset.testid = 'level-select';
@@ -75,9 +76,12 @@ export class LevelSelect {
 
     const footer = document.createElement('div');
     footer.className = 'select__footer';
-    footer.append(this.wardrobeButton, this.resetButton);
+    footer.append(this.wardrobeButton);
+    if (settingsPanel) footer.append(settingsPanel.button);
+    footer.append(this.resetButton);
 
     this.element.append(title, this.notice, tabList, this.gridWrap, footer, this.confirm);
+    if (settingsPanel) this.element.append(settingsPanel.element);
     this.render();
   }
 
