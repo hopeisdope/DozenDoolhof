@@ -16,9 +16,13 @@ export interface KeyboardActions {
   onRestart(): void;
   onConfirm(): void;
   onBack(): void;
+  onHint(): void;
 }
 
-/** Arrow keys move; `z`/Backspace undo; `r` restarts; Enter confirms; Escape goes back. */
+/**
+ * Arrow keys move; `z`/Backspace undo; `r` restarts; `h` asks for a hint; Enter confirms;
+ * Escape goes back.
+ */
 export function bindKeyboard(target: Window, actions: KeyboardActions): () => void {
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -31,6 +35,8 @@ export function bindKeyboard(target: Window, actions: KeyboardActions): () => vo
       actions.onUndo();
     } else if (event.key === 'r') {
       actions.onRestart();
+    } else if (event.key === 'h') {
+      actions.onHint();
     } else if (event.key === 'Enter') {
       actions.onConfirm();
     } else if (event.key === 'Escape') {

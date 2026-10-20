@@ -7,6 +7,9 @@ export const ICONS = {
     '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6"/>' +
     '<path d="M14 11v6"/>',
   close: '<path d="M6 6l12 12"/><path d="M18 6 6 18"/>',
+  hint:
+    '<path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.6.5.8 1 .8 1.7v.5h6V16c0-.7.2-1.2.8-1.7A6.5 6.5 0 0 0 12 2.5z"/>' +
+    '<path d="M9.5 19h5"/><path d="M10.5 21.5h3"/>',
   levels:
     '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/>' +
     '<rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>',

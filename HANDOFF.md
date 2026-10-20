@@ -1,31 +1,37 @@
-# Handoff — 2026-10-19
+# Handoff — 2026-10-20
 
 Concise state for reloading into a fresh session. Details are in `WORKLIST.md`.
 
 ## State
 
-- Fase 4 klaar op branch `phase-4-progress-and-levels` (gemerged naar `main` als de checks
-  groen zijn; zie de git-log).
-- 120 levels: `src/levels/tiers/{easy,medium,hard}.ts`, elk 40. ID's `<tier>-01`…`-40` zijn
-  stabiel; 01–20 zijn de oude levels, 21–40 nieuw en om en om ertussen gezet. De positie
-  (`Level 3`) is dus niet het ID-nummer.
-- Voortgang: `src/ui/progress.ts`, `localStorage`-sleutel `dozendoolhof.progress`,
-  `{ version: 1, bestStars: { id: 1|2|3 } }`. Migraties via `MIGRATIONS`; data van een
-  nieuwere versie wordt niet overschreven; zonder localStorage alleen in het geheugen (met
-  melding op het startscherm).
-- Sterren: `starsFor(moves, par)`, par = lengte van de opgeslagen oplossing.
-- Startscherm: levelraster scrolt binnen zijn eigen vak (40 knoppen), wisknop onderaan.
-- Wacht op beoordeling door de gebruiker.
+- Fase 5 klaar op branch `phase-5-hints` (gemerged naar `main` als de checks groen zijn; zie
+  de git-log). Wacht op beoordeling door de gebruiker; niet aan fase 6 beginnen.
+- Hints: lampknop rechts in de bedieningsrij (`data-testid="hint-button"`, toets `h`).
+  Stap 1 omlijnt de volgende doos en ringt haar doel, stap 2 voegt pijl en standplaats toe,
+  stap 3 een ghost-preview (looproute + hoogstens 3 duwen); een vierde tik herhaalt stap 3.
+  Sluiten met de ronde X boven het bord (staat buiten `.stage`, want die vangt pointers voor
+  swipes) of Escape.
+- Logica: `src/hints/hint.ts` (puur), `src/hints/controller.ts` (stappen, verouderde hints
+  wissen, late zoekresultaten negeren via token), `src/hints/worker-solver.ts` +
+  `solver-worker.ts` (Web Worker, budget 60 000 duwstanden, terugval op de main thread).
+  Weergave: `src/render/hint-layer.ts`. Oplosser: `search(level, state, budget)` geeft
+  `solved | unsolvable | gave-up`; `solve()` werkt als voorheen.
+- Op het pad van de opgeslagen oplossing wordt niet gezocht (directe hint). Een zet die de
+  hint volgt werkt hem bij; elke andere zet, undo, herstart, levelwissel of winst wist hem.
+- Onoplosbaar: melding "Zo lukt het niet meer" met "Eén zet terug" en "Helemaal opnieuw".
+  Budget op: "Even geen hint" (geen verzonnen route).
 
 ## Watch out for
 
-- Nieuwe levels zijn gemaakt met een tijdelijke generator (niet in de repo): willekeurige
-  kamers, plaatsing willekeurig of via omgekeerd zoeken (dozen van de doelen af trekken),
-  gefilterd en geordend op oplosserstatistieken, ontdubbeld op kamervorm en oplossing.
-- easy-10 en easy-14 hebben dezelfde oplossing (gespiegeld); bewuste uitzondering in de test.
-- Opgeslagen oplossingen komen van de oplosser: minimaal aantal duwen, niet minimaal aantal zetten.
-- Vite-`base` is `/DozenDoolhof/` (hoofdlettergevoelig); niet wijzigen.
+- Bedieningsknoppen schalen nu met `clamp(62px, 19vw, 76px)` (liggend: `20vh`) zodat er vier
+  op een iPhone SE passen.
+- Ghost-animatie gebruikt de Web Animations API; met reduced motion staat de ghost stil op
+  het eindpunt.
+- Worker wordt als iife gebouwd en met `type: 'module'` gestart (iOS 15+); faalt dat, dan
+  rekent de main thread (kort hapergevoel mogelijk bij moeilijke levels).
 - Alleen getest in Chromium met mobiele emulatie, niet op iOS/WebKit.
-- De e2e-suite telt ~560 tests (o.a. layout van alle 120 levels × 4 viewports).
+- Nieuwe levels zijn gemaakt met een tijdelijke generator (niet in de repo).
+- easy-10 en easy-14 hebben dezelfde oplossing (gespiegeld); bewuste uitzondering in de test.
+- Vite-`base` is `/DozenDoolhof/` (hoofdlettergevoelig); niet wijzigen.
 - @playwright/test vast op 1.56.1 (aanwezige Chromium), TypeScript op 6.0.x.
 - De commit-msg-hook (`.githooks/`) per clone aanzetten: `git config core.hooksPath .githooks`.

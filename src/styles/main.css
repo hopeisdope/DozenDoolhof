@@ -417,7 +417,9 @@ body {
   .piece--box.is-on-goal .piece__sprite,
   .piece--player .hero .hero__body,
   .piece--player .hero .hero__leg,
-  .piece--player .hero .hero__arm {
+  .piece--player .hero .hero__arm,
+  .hint-layer *,
+  .button--hint.is-thinking svg {
     animation: none !important;
   }
 }
@@ -428,7 +430,13 @@ body {
   grid-area: controls;
   display: flex;
   justify-content: center;
-  gap: 24px;
+  gap: clamp(10px, 3.5vw, 24px);
+}
+
+/* Four buttons in a row must fit an iPhone SE; they never drop below ~60 pt. */
+.controls .button {
+  width: clamp(62px, 19vw, 76px);
+  height: clamp(62px, 19vw, 76px);
 }
 
 .button {
@@ -511,7 +519,223 @@ body {
   .controls {
     flex-direction: column;
     justify-content: center;
-    gap: 18px;
+    gap: clamp(8px, 3vh, 18px);
+  }
+
+  .controls .button {
+    width: clamp(62px, 20vh, 76px);
+    height: clamp(62px, 20vh, 76px);
+  }
+}
+
+/* ---------- Hints ---------- */
+
+/* The hint button: a light bulb on a sky-blue button, lit up while a hint shows. */
+.button--hint {
+  background: linear-gradient(#a8ecff, #4cc3f0 50%, #1f8fc8);
+  box-shadow:
+    inset 0 -6px 0 rgb(0 40 90 / 30%),
+    0 6px 0 var(--c-outline),
+    0 10px 14px rgb(0 0 0 / 35%);
+}
+
+.button--hint.is-active {
+  background: linear-gradient(#fff6b0, #ffe04a 50%, #ffb81f);
+  color: #fffbe0;
+}
+
+.button--hint.is-thinking svg {
+  animation: hint-think 700ms ease-in-out infinite alternate;
+}
+
+/* Yellow pips in a dark tab on top of the button show how much help is on screen. */
+.button--hint::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  height: 16px;
+  translate: -50% 0;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, var(--c-star) 3.5px, transparent 4px) 4px 0 / 11px 16px repeat-x,
+    var(--c-outline);
+  opacity: 0;
+}
+
+.button--hint[data-stage='1']::after {
+  width: 19px;
+  opacity: 1;
+}
+
+.button--hint[data-stage='2']::after {
+  width: 30px;
+  opacity: 1;
+}
+
+.button--hint[data-stage='3']::after {
+  width: 41px;
+  opacity: 1;
+}
+
+/* Close button and notice sit over the stage but outside it (the stage captures swipes). */
+.button--hint-close {
+  grid-area: stage;
+  align-self: start;
+  justify-self: end;
+  z-index: 3;
+  width: 60px;
+  height: 60px;
+  border-width: 3px;
+  border-radius: 50%;
+  background: linear-gradient(#9fb4c9, #6f88a3 50%, #536b85);
+}
+
+.button--hint-close::before {
+  border-radius: 999px 999px 40% 40%;
+}
+
+.button--hint-close[hidden],
+.hint-notice[hidden] {
+  display: none;
+}
+
+.hint-notice {
+  grid-area: stage;
+  align-self: end;
+  justify-self: center;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 6px 12px;
+  max-width: 100%;
+  padding: 10px 16px 14px;
+  border: 4px solid var(--c-outline);
+  border-radius: 24px;
+  background: linear-gradient(#3a7cc0, #1d4f86 60%, #173f6d);
+  box-shadow:
+    inset 0 3px 0 rgb(255 255 255 / 25%),
+    0 6px 0 var(--c-outline);
+  animation: pop-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hint-notice__icon svg {
+  display: block;
+  width: 40px;
+  height: 40px;
+  color: #c9d6e2;
+}
+
+.hint-notice__text {
+  margin: 0;
+  font-weight: 900;
+  font-size: 1.1rem;
+  text-shadow: var(--text-outline);
+}
+
+.hint-notice__buttons {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+
+.hint-notice__buttons:not(:has(.button:not([hidden]))) {
+  display: none;
+}
+
+.hint-notice .button[hidden] {
+  display: none;
+}
+
+.button--small {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+}
+
+/* Everything the hint draws lies on top of the board and never takes a touch. */
+.hint-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.hint-layer[hidden] {
+  display: none;
+}
+
+.hint-layer__marks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.hint-layer .hint__outline {
+  fill: none;
+  stroke: var(--c-outline);
+}
+
+.hint-layer .hint__line {
+  fill: none;
+  stroke: var(--c-star);
+}
+
+.hint-layer .hint__fill {
+  fill: var(--c-star);
+}
+
+.hint-layer .hint__dot {
+  fill: var(--c-outline);
+}
+
+.hint-layer .hint__route-dot {
+  fill: #ffffff;
+}
+
+.hint__box {
+  animation: hint-pulse 900ms ease-in-out infinite alternate;
+}
+
+.hint__arrow {
+  animation: hint-pulse 900ms ease-in-out infinite alternate;
+}
+
+.hint-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% / var(--cols));
+  height: calc(100% / var(--rows));
+  opacity: 0.6;
+}
+
+.hint-ghost__sprite {
+  position: absolute;
+  inset: 0;
+}
+
+.hint-ghost--box .hint-ghost__sprite {
+  background: url('../assets/pieces/crate.svg') center / 100% 100% no-repeat;
+  opacity: 0.8;
+}
+
+@keyframes hint-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+
+@keyframes hint-think {
+  to {
+    scale: 0.85;
   }
 }
 

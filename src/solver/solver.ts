@@ -1,4 +1,4 @@
-import type { Direction, Level } from '../engine/state';
+import type { Direction, GameState, Level } from '../engine/state';
 
 /**
  * Sokoban solver: breadth-first search over box pushes, so the solution found has the
@@ -6,7 +6,8 @@ import type { Direction, Level } from '../engine/state';
  * States are deduplicated on (box positions, area the player can reach), and boxes are
  * never pushed onto "dead" cells from which no goal can be reached.
  *
- * Used by the test suite to prove every level solvable and to measure difficulty.
+ * Used by the test suite to prove every level solvable and to measure difficulty, and by
+ * the hints to find a solution from whatever state the player has reached.
  */
 
 export interface SolveResult {
@@ -17,6 +18,12 @@ export interface SolveResult {
   /** Number of distinct push states explored; a rough measure of puzzle complexity. */
   readonly explored: number;
 }
+
+/** Outcome of a search: a solution, proof that none exists, or an exhausted budget. */
+export type SearchOutcome =
+  | { readonly kind: 'solved'; readonly result: SolveResult }
+  | { readonly kind: 'unsolvable' }
+  | { readonly kind: 'gave-up' };
 
 const LETTERS: Record<Direction, string> = { up: 'u', down: 'd', left: 'l', right: 'r' };
 const DIRS: readonly Direction[] = ['up', 'down', 'left', 'right'];
@@ -81,14 +88,34 @@ function reach(level: Level, boxes: ReadonlySet<number>, start: number): Map<num
   return paths;
 }
 
+/** Solves `level` from its start position; `null` when unsolvable or over budget. */
 export function solve(level: Level, maxStates = 200_000): SolveResult | null {
+  const outcome = search(level, level.start, maxStates);
+  return outcome.kind === 'solved' ? outcome.result : null;
+}
+
+/**
+ * Searches for a solution from any reachable `state` of `level` (player and box
+ * positions; move counters are ignored). Never modifies its input.
+ */
+export function search(
+  level: Level,
+  state: Pick<GameState, 'player' | 'boxes'>,
+  maxStates = 200_000,
+): SearchOutcome {
   const live = liveCells(level);
   const goals = new Set(level.goals);
+  // A box on a dead cell can never reach a goal: no need to search at all.
+  if (state.boxes.some((box) => !live[box])) return { kind: 'unsolvable' };
   const seen = new Set<string>();
   let frontier: Node[] = [
-    { boxes: level.start.boxes, player: level.start.player, parent: null, steps: '' },
+    {
+      boxes: [...state.boxes].sort((a, b) => a - b),
+      player: state.player,
+      parent: null,
+      steps: '',
+    },
   ];
-
   while (frontier.length > 0) {
     const next: Node[] = [];
     for (const node of frontier) {
@@ -97,16 +124,19 @@ export function solve(level: Level, maxStates = 200_000): SolveResult | null {
       const key = `${node.boxes.join(',')}|${Math.min(...paths.keys())}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      if (seen.size > maxStates) return null;
+      if (seen.size > maxStates) return { kind: 'gave-up' };
 
       if (node.boxes.every((box) => goals.has(box))) {
         let solution = '';
         for (let n: Node | null = node; n; n = n.parent) solution = n.steps + solution;
         return {
-          solution,
-          moves: solution.length,
-          pushes: [...solution].filter((c) => c !== c.toLowerCase()).length,
-          explored: seen.size,
+          kind: 'solved',
+          result: {
+            solution,
+            moves: solution.length,
+            pushes: [...solution].filter((c) => c !== c.toLowerCase()).length,
+            explored: seen.size,
+          },
         };
       }
 
@@ -128,5 +158,5 @@ export function solve(level: Level, maxStates = 200_000): SolveResult | null {
     }
     frontier = next;
   }
-  return null;
+  return { kind: 'unsolvable' };
 }

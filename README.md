@@ -4,10 +4,10 @@ Een vrolijke, kindvriendelijke Sokoban-achtige puzzelgame voor iPhone en iPad, g
 een kind van zes jaar. Duw de dozen naar de blauwe doelen. Er is geen tijdsdruk en je hoeft
 niet te kunnen lezen om te spelen.
 
-> **Status: fase 4.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
+> **Status: fase 5.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
 > veertig levels, direct te kiezen vanaf het startscherm, zonder tutorial. Glanzende
 > cartoonstijl met een geanimeerd bouwvakkertje. Gehaalde levels en sterren blijven bewaard
-> in de browser (localStorage).
+> in de browser (localStorage). Een optionele lampknop geeft hints in drie stapjes.
 
 Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 
@@ -20,6 +20,8 @@ Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 | Opnieuw beginnen | Knop met de ronde pijl (ook ongedaan te maken) | `r`              |
 | Volgende level   | Groene pijlknop na "Gelukt!"                   | Enter            |
 | Naar de levels   | Knop met de vier vakjes                        | Escape           |
+| Hint             | Blauwe knop met het lampje (tik nog eens)      | `h`              |
+| Hint sluiten     | Ronde grijze knop met het kruisje              | Escape           |
 
 Het startscherm toont de drie niveaus en de veertig levels van het gekozen niveau (op een
 telefoon scrolt alleen het levelraster). Een gehaald level krijgt één tot drie sterren: drie
@@ -27,6 +29,24 @@ voor hoogstens zoveel zetten als de bekende oplossing, twee voor tot anderhalf k
 anders één. Het beste resultaat blijft staan; een slechtere herhaling overschrijft het niet.
 Een level direct openen kan met `?tier=medium&level=3` achter de URL (`tier` is `easy`,
 `medium` of `hard`, `level` is de positie in het niveau).
+
+### Hints
+
+De lampknop is optioneel en kost niets: geen sterren, geen extra zetten. Elke tik geeft
+iets meer hulp (de puntjes boven de knop tonen hoeveel):
+
+1. Een gele omlijning om de doos die nu aan de beurt is en een gestippelde ring om het doel
+   waar die doos heen moet.
+2. Daarbij een pijl op de doos (welke kant op duwen) en een ring waar het bouwvakkertje moet
+   gaan staan.
+3. Een doorzichtig bouwvakkertje en doosje spelen de volgende zetten voor (looproute met
+   stipjes en een paar duwen). Nog een tik speelt het opnieuw af.
+
+De hint voert zelf nooit een zet uit; je blijft gewoon spelen terwijl hij zichtbaar is. Speel
+je de getoonde zet, dan schuift de hint mee; doe je iets anders, undo of opnieuw beginnen,
+dan verdwijnt hij. De hint wordt berekend vanaf de stand op het bord (in een Web Worker, zodat
+het spel niet hapert). Kan het level vanaf hier niet meer worden opgelost, dan verschijnt
+"Zo lukt het niet meer" met knoppen voor één zet terug en helemaal opnieuw.
 
 ### Voortgang
 
@@ -84,9 +104,10 @@ Eenmalig Chromium installeren: `npx playwright install chromium`.
 src/
   engine/       pure spelregels, zonder DOM (state, move, history/undo)
   levels/       levelparser, niveaus, leveldefinities per niveau (tiers/), LURD-oplossingen
-  solver/       Sokoban-oplosser (valideert levels, meet moeilijkheid)
+  solver/       Sokoban-oplosser (valideert levels, meet moeilijkheid, zoekt voor hints)
+  hints/        hintkeuze, hintstappen en de oplosser in een Web Worker
   assets/       SVG-artwork: tegels, kisten, bouwvakkertje, UI
-  render/       DOM-weergave van het bord, muur-autotiling, spelerhouding
+  render/       DOM-weergave van het bord, muur-autotiling, spelerhouding, hintlaag
   ui/           startscherm, spelscherm, voortgang (localStorage), swipe en toetsenbord
   styles/       CSS
   main.ts       startpunt
@@ -95,6 +116,7 @@ tests/
   levels/       unit tests voor parser en alle 120 levels
   ui/           unit tests voor voortgang (opslag, migratie, beschadigde data)
   solver/       unit tests voor de oplosser
+  hints/        unit tests voor hintkeuze en hintstappen
   e2e/          Playwright-tests
 ```
 

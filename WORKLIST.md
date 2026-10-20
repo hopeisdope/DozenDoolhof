@@ -4,16 +4,24 @@ Read at the start of every session; update when something is done or added.
 
 ## Now
 
-- [ ] Gebruiker beoordeelt fase 4: 120 levels (40 per niveau, nieuwe levels tussen de oude),
-      sterren 1–3, bewaarde voortgang en wisknop, op iPhone en iPad
+- [ ] Gebruiker beoordeelt fase 5: hints in drie stapjes (lampknop), op iPhone en iPad
+      (vooral: begrijpt een kind van 4–6 de omlijning, pijl en ghost-preview zonder uitleg?)
+- [ ] Gebruiker beoordeelt fase 4 nog op een echt toestel, als dat niet al gebeurd is
 
 ## Next
 
-- [ ] Fase 3: touchbediening en kindvriendelijke UX (tik-om-te-lopen, feedback)
-- [ ] Fase 5: wereldkaart en beloningen
-- [ ] Fase 6: hints, detectie van vastlopen, moeilijkheidsopbouw
-- [ ] Fase 7: PWA, service worker, offline spelen
-- [ ] Fase 8: eindtest op iPhone en iPad
+Gekozen volgorde (projectfases; niet de nummers van de oude featurelijst):
+
+- [ ] Fase 6: vastgelopen dozen herkennen en vriendelijk helpen
+- [ ] Fase 7: beloningen voor het bouwvakkertje
+- [ ] Fase 8: optionele geluidseffecten en korte gesproken feedback
+- [ ] Fase 9: PWA en offline spelen
+
+## Later (nog niet ingepland)
+
+- [ ] Tik-om-te-lopen en extra touchfeedback
+- [ ] Wereldkaart
+- [ ] Eindtest op iPhone en iPad (echte toestellen)
 
 ## Open questions
 
@@ -39,5 +47,9 @@ Read at the start of every session; update when something is done or added.
       ontworpen met oplosser-gestuurde generator en tussen de bestaande gezet), voortgang en
       sterren in localStorage (versie 1, migratiestructuur, veilig inlezen, terugval op
       geheugen), wisknop met bevestiging
+- [x] Fase 5 (branch `phase-5-hints`): optioneel hintsysteem in drie stappen (doos + doel,
+      pijl + standplaats, ghost-preview), berekend vanaf de actuele stand met de oplosser in
+      een Web Worker; vastgelopen stand geeft een melding met undo/herstart; hints raken
+      spelstatus, zetten, sterren en voortgang niet
 - [x] Werkafspraken bijgewerkt (project-start): CLAUDE.md met Session start, "Git: merge to
       main after every commit", End of task en Compact instructions
