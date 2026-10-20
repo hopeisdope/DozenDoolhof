@@ -45,7 +45,8 @@ noWayOut/stop` aan). Instellingen: `src/ui/settings.ts` + `settings-panel.ts` (g
 - Een muisklik op het bord is nu ook een tik (zet of wandeling).
 - Alle e2e-tests draaien met service worker (productiebuild); een verse context per test.
   Playwright onderschept de update-check van `sw.js` niet: de updatetest registreert
-  `sw.js?e2e=next`. iOS-installatie en offline gebruik op een toestel zijn niet getest.
+  `sw.js?e2e=next`. `waitForServiceWorker` laadt de pagina één keer opnieuw als de worker
+  activeerde tijdens een (her)laad-navigatie (die pagina kan hij niet claimen). iOS-installatie en offline gebruik op een toestel zijn niet getest.
 - Op iOS deelt de beginscherm-app geen opslag met Safari (voortgang apart).
 - Spraak is in Chromium/CI niet echt te horen (geen Nederlandse stem); e2e vervangt
   `speechSynthesis`. Op iOS zelf testen. VoiceOver en de eigen stem kunnen tegelijk praten.
