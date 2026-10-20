@@ -1,4 +1,4 @@
-import { toPosition, type Direction, type GameState, type Level } from '../engine/state';
+import { toIndex, toPosition, type Direction, type GameState, type Level } from '../engine/state';
 import { DEFAULT_OUTFIT, outfitKey, type Outfit } from '../rewards/catalog';
 import { heroMarkup } from './hero';
 import { describeMotion } from './motion';
@@ -100,6 +100,16 @@ export class BoardView {
       void this.element.offsetWidth;
       this.element.classList.remove('board--instant');
     }
+  }
+
+  /** The cell under a point on screen (client coordinates), or `null` off the board. */
+  cellAt(clientX: number, clientY: number): number | null {
+    const rect = this.element.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    const x = Math.floor(((clientX - rect.left) / rect.width) * this.level.width);
+    const y = Math.floor(((clientY - rect.top) / rect.height) * this.level.height);
+    if (x < 0 || y < 0 || x >= this.level.width || y >= this.level.height) return null;
+    return toIndex(this.level, x, y);
   }
 
   /** Dresses the worker; pose and position stay as they are. Purely cosmetic. */

@@ -4,8 +4,13 @@ Concise state for reloading into a fresh session. Details are in `WORKLIST.md`.
 
 ## State
 
-- Fase 9 klaar op branch `phase-9-pwa-offline` (gemerged naar `main`; zie de git-log),
-  fases 7 en 8 daarvoor. Alle drie wachten op beoordeling op een echt toestel.
+- Fase 10 klaar op branch `phase-10-ux-improvements` (gemerged naar `main`; zie de
+  git-log), fases 7–9 daarvoor. Alle vier wachten op beoordeling op een echt toestel.
+- Fase 10: tikken (`bindSwipe(..., onTap)` met `TAP_SLOP` 8 px; `BoardView.cellAt`;
+  `GameScreen.tap/walk/stopWalk`, `src/engine/path.ts`), volgende level
+  (`.level-button.is-next` + `aria-current="step"`, `revealNext()` scrolt in een rAF),
+  handje (`src/render/swipe-demo.ts`, `GameScreen.scheduleDemo/stopDemo`, alleen als
+  `rewards.stats().levels === 0`, na 1,8 s).
 - PWA: `pwa/precache.ts` (Vite-plugin, `closeBundle`: leest `dist/`, schrijft `sw.js` met
   lijst + versiehash; `NOT_PRECACHED` = de twee 512-iconen), `pwa/service-worker.js`
   (sjabloon met `/* inject:… */`-markers), `src/pwa.ts` (registratie alleen in productie;
@@ -35,6 +40,9 @@ noWayOut/stop` aan). Instellingen: `src/ui/settings.ts` + `settings-panel.ts` (g
 
 ## Watch out for
 
+- Elke e2e-test start met een lege voortgang, dus het handje verschijnt na 1,8 s in elk
+  level; het neemt geen aanrakingen en zit binnen het bord (`overflow: hidden`).
+- Een muisklik op het bord is nu ook een tik (zet of wandeling).
 - Alle e2e-tests draaien met service worker (productiebuild); een verse context per test.
   Playwright onderschept de update-check van `sw.js` niet: de updatetest registreert
   `sw.js?e2e=next`. iOS-installatie en offline gebruik op een toestel zijn niet getest.

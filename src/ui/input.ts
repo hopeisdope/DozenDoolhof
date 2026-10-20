@@ -3,6 +3,9 @@ import type { Direction } from '../engine/state';
 /** Minimum finger travel, in CSS pixels, before a swipe counts as a move. */
 const SWIPE_THRESHOLD = 24;
 
+/** Maximum finger travel for a tap; anything between a tap and a swipe does nothing. */
+const TAP_SLOP = 8;
+
 const KEY_DIRECTIONS: Record<string, Direction> = {
   ArrowUp: 'up',
   ArrowDown: 'down',
@@ -51,18 +54,25 @@ export function bindKeyboard(target: Window, actions: KeyboardActions): () => vo
  * Turns a swipe on `element` into exactly one direction. The move fires as soon as
  * the finger has travelled far enough, so it feels immediate; the rest of the same
  * gesture is ignored, which prevents a single swipe from producing several moves.
- * Only the first finger is tracked. Pointer events cover touch, pen and mouse.
+ * A finger that lifts again almost where it went down is a tap, reported with the
+ * position where it went down. Only the first finger is tracked. Pointer events cover
+ * touch, pen and mouse.
  */
 export function bindSwipe(
   element: HTMLElement,
   onDirection: (direction: Direction) => void,
+  onTap?: (x: number, y: number) => void,
 ): () => void {
   let gesture: { id: number; x: number; y: number; fired: boolean } | null = null;
 
   const onDown = (event: PointerEvent): void => {
     if (gesture !== null) return;
     gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, fired: false };
-    element.setPointerCapture?.(event.pointerId);
+    try {
+      element.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Not an active pointer (a synthetic event): the gesture still works without capture.
+    }
   };
 
   const onMove = (event: PointerEvent): void => {
@@ -76,7 +86,11 @@ export function bindSwipe(
   };
 
   const onEnd = (event: PointerEvent): void => {
-    if (gesture?.id === event.pointerId) gesture = null;
+    if (gesture?.id !== event.pointerId) return;
+    const { x, y, fired } = gesture;
+    gesture = null;
+    const travel = Math.max(Math.abs(event.clientX - x), Math.abs(event.clientY - y));
+    if (event.type === 'pointerup' && !fired && travel <= TAP_SLOP) onTap?.(x, y);
   };
 
   // Belt and braces next to `touch-action: none`: never let the page scroll or zoom.

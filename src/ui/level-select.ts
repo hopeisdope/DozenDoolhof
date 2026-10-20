@@ -130,6 +130,9 @@ export class LevelSelect {
 
     const tier = this.tiers[this.tierIndex];
     if (!tier) return;
+    // The first level without stars is where to carry on: the worker waits there.
+    const next = tier.levels.findIndex((level) => !this.progress.isCompleted(level.id));
+    const worker = next >= 0 ? heroMarkup(this.rewards.outfit()) : '';
     this.grid.className = `levels levels--${tier.id}`;
     this.grid.setAttribute('aria-labelledby', `tier-${tier.id}`);
     this.grid.replaceChildren(
@@ -151,11 +154,32 @@ export class LevelSelect {
             ? `<span class="level-button__stars" aria-hidden="true">${starRow(stars, starUrl, 3)}</span>`
             : ''
         }`;
+        if (index === next) {
+          button.classList.add('is-next');
+          button.setAttribute('aria-current', 'step');
+          button.insertAdjacentHTML(
+            'beforeend',
+            `<span class="hero-preview level-button__worker" aria-hidden="true">${worker}</span>`,
+          );
+        }
         button.addEventListener('click', () => this.onPick(this.tierIndex, index));
         item.append(button);
         return item;
       }),
     );
+    // Once the screen is laid out, scroll the next level into view if it is not.
+    requestAnimationFrame(() => this.revealNext());
+  }
+
+  private revealNext(): void {
+    const button = this.grid.querySelector<HTMLElement>('.level-button.is-next');
+    if (!button || this.element.hidden) return;
+    const wrap = this.gridWrap.getBoundingClientRect();
+    const box = button.getBoundingClientRect();
+    const margin = 24; // room for the star row and the worker above the button
+    if (box.bottom + margin > wrap.bottom)
+      this.gridWrap.scrollTop += box.bottom + margin - wrap.bottom;
+    else if (box.top - margin < wrap.top) this.gridWrap.scrollTop -= wrap.top - (box.top - margin);
   }
 
   /** The worker as dressed now, and a badge with the number of unseen rewards. */

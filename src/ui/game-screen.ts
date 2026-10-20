@@ -10,6 +10,7 @@ import {
   undo,
   type Game,
 } from '../engine/history';
+import { directionTo, walkPath } from '../engine/path';
 import type { Direction, Level } from '../engine/state';
 import { HintController, type HintView } from '../hints/controller';
 import { createWorkerSolver } from '../hints/worker-solver';
@@ -18,23 +19,41 @@ import { BoardView } from '../render/board';
 import { findStuckBoxes } from '../solver/deadlock';
 import { heroMarkup, itemIcon } from '../render/hero';
 import { HintLayer } from '../render/hint-layer';
+import { SwipeDemo } from '../render/swipe-demo';
 import type { RewardItem } from '../rewards/catalog';
 import type { Rewards } from '../rewards/rewards';
 import { ICONS, icon, iconButton, starRow } from './icons';
 import { bindKeyboard, bindSwipe } from './input';
 import { starsFor, type Stars } from './progress';
 
+/** Milliseconds per step when a tap walks the worker to a cell further away. */
+const WALK_STEP_MS = 130;
+/** How long a new player may look before the hand shows how to move. */
+const DEMO_DELAY_MS = 1800;
+
+const SOLUTION_DIRECTIONS: Record<string, Direction> = {
+  u: 'up',
+  d: 'down',
+  l: 'left',
+  r: 'right',
+};
+
 /**
  * The play screen: HUD, board, level/undo/restart/hint controls, the "stuck box" notice
  * and the "level complete" overlay (with any reward the win unlocked). Owns the current
  * `Game` and re-renders after every change. One instance is reused for every level;
- * `open()` switches levels.
+ * `open()` switches levels. Moves come from swipes, keys and taps: a tap next to the
+ * worker is one step (or push), a tap on a free cell further away walks there.
  */
 export class GameScreen {
   readonly element = document.createElement('section');
   private game!: Game;
   private board!: BoardView;
   private hintLayer!: HintLayer;
+  private demo!: SwipeDemo;
+  private demoTimer: number | null = null;
+  /** The pending step of a walk started by a tap, if any. */
+  private walkTimer: number | null = null;
   private tier!: Tier;
   private levelIndex = 0;
 
@@ -77,7 +96,11 @@ export class GameScreen {
     this.element.hidden = true;
     this.build();
 
-    bindSwipe(this.stage, (direction) => this.move(direction));
+    bindSwipe(
+      this.stage,
+      (direction) => this.move(direction),
+      (x, y) => this.tap(x, y),
+    );
     bindKeyboard(window, {
       onDirection: (direction) => this.active && this.move(direction),
       onUndo: () => this.active && this.undo(),
@@ -98,6 +121,8 @@ export class GameScreen {
   /** Starts level `levelIndex` (0-based) of `tier`. */
   open(tier: Tier, levelIndex: number): void {
     this.feedback.stop();
+    this.stopWalk();
+    this.stopDemo();
     this.tier = tier;
     this.levelIndex = levelIndex;
     this.game = createGame(this.currentLevel);
@@ -105,7 +130,8 @@ export class GameScreen {
     this.board = new BoardView(this.currentLevel, outfit);
     this.hintLayer = new HintLayer(this.currentLevel, outfit);
     this.newRewards = [];
-    this.board.element.append(this.hintLayer.element);
+    this.demo = new SwipeDemo(this.currentLevel);
+    this.board.element.append(this.hintLayer.element, this.demo.element);
     this.stage.replaceChildren(this.board.element);
     this.hints.setLevel(this.currentLevel, this.tier.definitions[levelIndex]?.solution ?? '');
     this.renderHint(this.hints.view);
@@ -119,6 +145,7 @@ export class GameScreen {
     this.overlay.hidden = true;
     this.element.hidden = false;
     this.render();
+    this.scheduleDemo();
   }
 
   private get active(): boolean {
@@ -217,10 +244,17 @@ export class GameScreen {
     );
   }
 
+  /** A swipe or key: one step, and the end of any walk that was still going. */
   private move(direction: Direction): void {
+    this.stopWalk();
+    this.step(direction);
+  }
+
+  private step(direction: Direction): void {
     if (isGameSolved(this.game)) return;
     const next = move(this.game, direction);
     if (next === this.game) {
+      this.stopDemo();
       this.board.bump();
       this.feedback.blocked();
       return;
@@ -232,7 +266,73 @@ export class GameScreen {
     if (solved) this.feedback.won(this.newRewards.length);
   }
 
+  /**
+   * A tap on the board: next to the worker it is a step (or a push), on a free cell
+   * further away the worker walks there step by step without pushing anything. A tap
+   * on a wall, or on a box that is not next to the worker, only bumps.
+   */
+  private tap(clientX: number, clientY: number): void {
+    if (isGameSolved(this.game)) return;
+    this.stopWalk();
+    const cell = this.board.cellAt(clientX, clientY);
+    if (cell === null) return;
+    const direction = directionTo(this.currentLevel, this.game.state.player, cell);
+    if (direction) {
+      this.step(direction);
+      return;
+    }
+    const path = walkPath(this.currentLevel, this.game.state, cell);
+    if (path === null) {
+      this.stopDemo();
+      this.board.bump();
+      this.feedback.blocked();
+    } else {
+      this.walk(path);
+    }
+  }
+
+  private walk(path: readonly Direction[]): void {
+    const [first, ...rest] = path;
+    if (!first) return;
+    this.step(first);
+    if (rest.length > 0) {
+      this.walkTimer = window.setTimeout(() => {
+        this.walkTimer = null;
+        if (this.active) this.walk(rest);
+      }, WALK_STEP_MS);
+    }
+  }
+
+  private stopWalk(): void {
+    if (this.walkTimer !== null) window.clearTimeout(this.walkTimer);
+    this.walkTimer = null;
+  }
+
+  /**
+   * Until the first level is won, a hand shows the first move of the level if nothing
+   * happens for a moment. Any move, tap, hint or leaving the level puts it away.
+   */
+  private scheduleDemo(): void {
+    if (this.rewards.stats().levels > 0) return;
+    const solution = this.tier.definitions[this.levelIndex]?.solution ?? '';
+    const direction = SOLUTION_DIRECTIONS[solution.charAt(0).toLowerCase()];
+    if (!direction) return;
+    const level = this.currentLevel;
+    this.demoTimer = window.setTimeout(() => {
+      this.demoTimer = null;
+      if (!this.active || this.currentLevel !== level || this.game.state !== level.start) return;
+      this.demo.show(level.start.player, direction);
+    }, DEMO_DELAY_MS);
+  }
+
+  private stopDemo(): void {
+    if (this.demoTimer !== null) window.clearTimeout(this.demoTimer);
+    this.demoTimer = null;
+    this.demo?.hide();
+  }
+
   private undo(): void {
+    this.stopWalk();
     if (isGameSolved(this.game)) return;
     const next = undo(this.game);
     if (next === this.game) return;
@@ -241,6 +341,7 @@ export class GameScreen {
   }
 
   private restart(): void {
+    this.stopWalk();
     if (isGameSolved(this.game)) return;
     const next = restart(this.game);
     if (next === this.game) return;
@@ -254,6 +355,8 @@ export class GameScreen {
    * out again instead of showing a second "this no longer works" message.
    */
   private hint(): void {
+    this.stopWalk();
+    this.stopDemo();
     if (isGameSolved(this.game)) return;
     if (this.stuckCells.length > 0) {
       this.board.wobbleStuck();
@@ -274,6 +377,8 @@ export class GameScreen {
 
   private exit(): void {
     this.feedback.stop();
+    this.stopWalk();
+    this.stopDemo();
     this.hints.clear();
     this.element.hidden = true;
     this.overlay.hidden = true;
@@ -282,6 +387,7 @@ export class GameScreen {
 
   private setGame(game: Game, animate: boolean, direction: Direction | null): void {
     if (game === this.game) return;
+    this.stopDemo();
     this.game = game;
     this.board.update(game.state, animate);
     this.hints.update(game.state, direction);

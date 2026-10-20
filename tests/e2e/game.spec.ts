@@ -1625,3 +1625,176 @@ test.describe('start screen buttons', () => {
     expect(scroll.width).toBeLessThanOrEqual(viewport.width);
   });
 });
+
+/** Taps (touch) or clicks (mouse) the middle of board cell (x, y). */
+async function tapCell(page: Page, x: number, y: number, isMobile: boolean): Promise<void> {
+  const board = (await page.getByTestId('board').boundingBox())!;
+  const columns = await cellColumns(page);
+  const rows = Number(
+    await page
+      .getByTestId('board')
+      .evaluate((el) => getComputedStyle(el).getPropertyValue('--rows')),
+  );
+  const point = {
+    x: board.x + ((x + 0.5) * board.width) / columns,
+    y: board.y + ((y + 0.5) * board.height) / rows,
+  };
+  if (isMobile) await page.touchscreen.tap(point.x, point.y);
+  else await page.mouse.click(point.x, point.y);
+}
+
+const position = async (page: Page) => [
+  Number(await player(page).getAttribute('data-x')),
+  Number(await player(page).getAttribute('data-y')),
+];
+
+test.describe('tap to move', () => {
+  // easy-01:  #######
+  //           #     #
+  //           #@ $ .#
+  //           #     #
+  //           #######
+  test('a tap next to the worker steps or pushes; a tap further away walks there', async ({
+    page,
+    isMobile,
+  }) => {
+    await page.goto(EASY_1);
+    await tapCell(page, 2, 2, isMobile); // right of the worker
+    await expect(moves(page)).toHaveText('Zetten: 1');
+    expect(await position(page)).toEqual([2, 2]);
+    await tapCell(page, 3, 2, isMobile); // the box, next to the worker: push
+    await expect(moves(page)).toHaveText('Zetten: 2');
+    await expect(page.getByTestId('box')).toHaveAttribute('data-x', '4');
+
+    await tapCell(page, 1, 1, isMobile); // three steps away, around nothing
+    await expect(moves(page)).toHaveText('Zetten: 5');
+    await expect.poll(() => position(page)).toEqual([1, 1]);
+    await expect(page.getByTestId('box')).toHaveAttribute('data-x', '4'); // walking never pushes
+
+    // A wall, a box that is not next to the worker, and the worker itself: nothing happens.
+    await tapCell(page, 0, 0, isMobile);
+    await tapCell(page, 4, 2, isMobile);
+    await tapCell(page, 1, 1, isMobile);
+    await page.waitForTimeout(400);
+    await expect(moves(page)).toHaveText('Zetten: 5');
+
+    // Each step of a walk is a move of its own: undo takes back one step.
+    await page.getByRole('button', { name: 'Ongedaan maken' }).click();
+    await expect(moves(page)).toHaveText('Zetten: 4');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+
+  test('the level can be won by tapping alone, with full stars', async ({ page, isMobile }) => {
+    await page.goto(EASY_1);
+    for (const x of [2, 3, 4]) await tapCell(page, x, 2, isMobile);
+    await expect(overlay(page)).toBeVisible();
+    await expect(page.getByTestId('win-stars')).toHaveAttribute('data-stars', '3');
+  });
+
+  test('a swipe or key during a walk stops the rest of the walk', async ({ page }) => {
+    await page.goto(EASY_1);
+    const board = (await page.getByTestId('board').boundingBox())!;
+    // Tap (5,1), five steps away, and press a key in the same moment.
+    await page.evaluate(
+      ({ x, y }) => {
+        const stage = document.querySelector('.stage')!;
+        const init = { pointerId: 7, clientX: x, clientY: y, bubbles: true };
+        stage.dispatchEvent(new PointerEvent('pointerdown', init));
+        stage.dispatchEvent(new PointerEvent('pointerup', init));
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+      },
+      { x: board.x + (5.5 * board.width) / 7, y: board.y + (1.5 * board.height) / 5 },
+    );
+    await expect(moves(page)).toHaveText('Zetten: 2');
+    await page.waitForTimeout(800);
+    await expect(moves(page)).toHaveText('Zetten: 2');
+  });
+
+  test('a small wobble of the finger is not a tap and not a swipe', async ({ page }) => {
+    await page.goto(EASY_1);
+    const board = (await page.getByTestId('board').boundingBox())!;
+    const x = board.x + (2.5 * board.width) / 7;
+    const y = board.y + (2.5 * board.height) / 5;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 14, y, { steps: 3 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    await expect(moves(page)).toHaveText('Zetten: 0');
+  });
+});
+
+test.describe('where to carry on', () => {
+  const next = (page: Page) => page.locator('.level-button[aria-current="step"]');
+
+  test('the first level without stars is marked, with the worker beside it', async ({ page }) => {
+    await page.goto('./');
+    await expect(next(page)).toHaveCount(1);
+    await expect(next(page)).toHaveAccessibleName('Level 1, Makkelijk');
+    await expect(next(page).locator('.level-button__worker svg.hero')).toHaveCount(1);
+
+    await seedProgress(page, 22);
+    await expect(next(page)).toHaveCount(1);
+    await expect(next(page)).toHaveAccessibleName('Level 23, Makkelijk');
+    // Scrolled into view by itself, on every screen size.
+    await expect(next(page)).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+    // Another tier has its own next level; a finished tier has none.
+    await page.getByRole('tab', { name: /Gemiddeld/ }).click();
+    await expect(next(page)).toHaveAccessibleName('Level 1, Gemiddeld');
+    await seedProgress(page, 40);
+    await expect(next(page)).toHaveCount(0);
+  });
+
+  test('with reduced motion the marker does not pulse', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('./');
+    expect(await next(page).evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
+  });
+});
+
+test.describe('first-time hand demo', () => {
+  const demo = (page: Page) => page.getByTestId('swipe-demo');
+
+  test('a new player is shown the first move until they move', async ({ page, isMobile }) => {
+    await page.goto(EASY_1);
+    await expect(demo(page)).toBeVisible({ timeout: 5000 });
+    await expect(demo(page)).toHaveAttribute('data-direction', 'right'); // solution rRR
+    // It never blocks the board: playing goes on as usual.
+    if (isMobile) await tapCell(page, 2, 2, isMobile);
+    else await page.keyboard.press('ArrowRight');
+    await expect(demo(page)).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 1');
+    await page.waitForTimeout(2500);
+    await expect(demo(page)).toBeHidden();
+  });
+
+  test('the hint button and leaving the level put it away', async ({ page }) => {
+    await page.goto(EASY_1);
+    await expect(demo(page)).toBeVisible({ timeout: 5000 });
+    await page.getByTestId('hint-button').click();
+    await expect(demo(page)).toBeHidden();
+    await page.getByRole('button', { name: 'Naar de levels' }).click();
+    await page.getByTestId('level-button').nth(1).click();
+    await expect(demo(page)).toBeVisible({ timeout: 5000 });
+  });
+
+  test('after the first win it does not come back', async ({ page }) => {
+    await seedProgress(page, 1);
+    await page.goto('./?tier=easy&level=2');
+    await page.waitForTimeout(2600);
+    await expect(demo(page)).toBeHidden();
+  });
+
+  test('with reduced motion the hand stands still', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(EASY_1);
+    await expect(demo(page)).toBeVisible({ timeout: 5000 });
+    expect(
+      await demo(page)
+        .locator('.swipe-demo__hand')
+        .evaluate((el) => getComputedStyle(el).animationName),
+    ).toBe('none');
+  });
+});

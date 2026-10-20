@@ -4,6 +4,9 @@ Read at the start of every session; update when something is done or added.
 
 ## Now
 
+- [ ] Gebruiker test fase 10 met een kind van 4–6: snapt het kind het handje zonder uitleg,
+      tikt het liever dan dat het veegt, en vindt het het volgende level via het
+      bouwvakkertje op de knop?
 - [ ] Gebruiker test fase 9 op een echt toestel: "Zet op beginscherm" op iPhone en iPad,
       icoon en naam, openen in vliegtuigstand (alle niveaus, hint, kledingkast), en een
       update na een nieuwe deploy (groene knop op het startscherm)
@@ -22,11 +25,11 @@ Read at the start of every session; update when something is done or added.
 
 ## Next
 
-Gekozen volgorde (projectfases; niet de nummers van de oude featurelijst):
+- [ ] Geen fase ingepland: fases 7–10 zijn klaar. De gebruiker kiest de volgende stap na de
+      tests op echte toestellen.
 
 ## Later (nog niet ingepland)
 
-- [ ] Tik-om-te-lopen en extra touchfeedback
 - [ ] Wereldkaart
 - [ ] Eindtest op iPhone en iPad (echte toestellen)
 
@@ -78,5 +81,9 @@ Gekozen volgorde (projectfases; niet de nummers van de oude featurelijst):
       per versie met de exacte buildlijst, navigaties uit de eigen versie, oude cache pas
       weg na de wissel), update-knop op het startscherm, offline getest (e2e) inclusief hints
       en voortgang; iOS-beperkingen gedocumenteerd
+- [x] Fase 10 (branch `phase-10-ux-improvements`): drie gerichte verbeteringen na analyse:
+      tikbediening (naast het bouwvakkertje = stap/duw, verderop = loop erheen via de
+      kortste weg zonder duwen), markering van het volgende level op het startscherm (met
+      automatisch scrollen) en een eenmalig handje dat de eerste zet voordoet
 - [x] Werkafspraken bijgewerkt (project-start): CLAUDE.md met Session start, "Git: merge to
       main after every commit", End of task en Compact instructions

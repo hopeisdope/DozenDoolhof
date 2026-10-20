@@ -4,7 +4,7 @@ Een vrolijke, kindvriendelijke Sokoban-achtige puzzelgame voor iPhone en iPad, g
 een kind van zes jaar. Duw de dozen naar de blauwe doelen. Er is geen tijdsdruk en je hoeft
 niet te kunnen lezen om te spelen.
 
-> **Status: fase 9.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
+> **Status: fase 10.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
 > veertig levels, direct te kiezen vanaf het startscherm, zonder tutorial. Glanzende
 > cartoonstijl met een geanimeerd bouwvakkertje. Gehaalde levels en sterren blijven bewaard
 > in de browser (localStorage). Een optionele lampknop geeft hints in drie stapjes. Een doos
@@ -12,23 +12,26 @@ niet te kunnen lezen om te spelen.
 > Gehaalde levels leveren helmen, shirts, stickers en gereedschap op voor het bouwvakkertje,
 > te kiezen in de kledingkast. Korte geluidjes en een vriendelijke stem (beide uit te zetten)
 > helpen kinderen die nog niet lezen. Te installeren op het beginscherm en na één bezoek
-> volledig offline speelbaar.
+> volledig offline speelbaar. Ook tikken op het bord werkt, het startscherm wijst het
+> volgende level aan en nieuwe spelers zien een handje dat de eerste zet voordoet.
 
 Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 
 ## Spelen
 
-| Actie            | Touch                                           | Toetsenbord      |
-| ---------------- | ----------------------------------------------- | ---------------- |
-| Lopen / duwen    | Veeg over het speelveld                         | Pijltjestoetsen  |
-| Ongedaan maken   | Knop met de gebogen pijl                        | `z` of Backspace |
-| Opnieuw beginnen | Knop met de ronde pijl (ook ongedaan te maken)  | `r`              |
-| Volgende level   | Groene pijlknop na "Gelukt!"                    | Enter            |
-| Naar de levels   | Knop met de vier vakjes                         | Escape           |
-| Hint             | Blauwe knop met het lampje (tik nog eens)       | `h`              |
-| Hint sluiten     | Ronde grijze knop met het kruisje               | Escape           |
-| Kledingkast      | Paarse knop met het bouwvakkertje (startscherm) | Escape = terug   |
-| Geluid en stem   | Grijze luidsprekerknop (startscherm)            | Escape = sluiten |
+| Actie             | Touch                                           | Toetsenbord      |
+| ----------------- | ----------------------------------------------- | ---------------- |
+| Lopen / duwen     | Veeg over het speelveld                         | Pijltjestoetsen  |
+| Lopen / duwen     | Tik naast het bouwvakkertje (één stap of duw)   | —                |
+| Ergens heen lopen | Tik op een vrij vakje verderop                  | —                |
+| Ongedaan maken    | Knop met de gebogen pijl                        | `z` of Backspace |
+| Opnieuw beginnen  | Knop met de ronde pijl (ook ongedaan te maken)  | `r`              |
+| Volgende level    | Groene pijlknop na "Gelukt!"                    | Enter            |
+| Naar de levels    | Knop met de vier vakjes                         | Escape           |
+| Hint              | Blauwe knop met het lampje (tik nog eens)       | `h`              |
+| Hint sluiten      | Ronde grijze knop met het kruisje               | Escape           |
+| Kledingkast       | Paarse knop met het bouwvakkertje (startscherm) | Escape = terug   |
+| Geluid en stem    | Grijze luidsprekerknop (startscherm)            | Escape = sluiten |
 
 Het startscherm toont de drie niveaus en de veertig levels van het gekozen niveau (op een
 telefoon scrolt alleen het levelraster). Een gehaald level krijgt één tot drie sterren: drie
@@ -36,6 +39,30 @@ voor hoogstens zoveel zetten als de bekende oplossing, twee voor tot anderhalf k
 anders één. Het beste resultaat blijft staan; een slechtere herhaling overschrijft het niet.
 Een level direct openen kan met `?tier=medium&level=3` achter de URL (`tier` is `easy`,
 `medium` of `hard`, `level` is de positie in het niveau).
+
+### Tikken, het volgende level en het handje
+
+- **Tikken.** Naast vegen kun je ook op het bord tikken. Tik op het vakje naast het
+  bouwvakkertje: het zet één stap, of duwt de doos die daar staat. Tik op een vrij vakje
+  verderop: het loopt er stap voor stap heen langs de kortste weg, om dozen en muren heen,
+  zonder iets te duwen (elke stap telt als zet, net als bij vegen; ongedaan maken neemt één
+  stap terug). Een tik op een muur of op een doos die er niet naast staat geeft alleen het
+  "botsje". Vegen of een toets tijdens het lopen stopt de rest van de wandeling. Een vinger
+  die net iets te veel beweegt (meer dan 8 pixels, minder dan een veeg) doet niets.
+- **Volgende level.** Op het startscherm heeft het eerste level zonder sterren in het
+  gekozen niveau een witte rand die zachtjes oplicht, met het bouwvakkertje (in de huidige
+  outfit) op de hoek. Staat het buiten beeld, dan scrolt het levelraster er zelf heen. Voor
+  schermlezers heeft de knop `aria-current="step"`.
+- **Het handje.** Zolang er nog geen enkel level gehaald is, verschijnt na bijna twee
+  seconden zonder zet een handje op het bouwvakkertje dat de eerste zet van het level
+  voordoet (een veeg in de goede richting). Elke zet, tik, hint of het verlaten van het level
+  laat het verdwijnen; na het eerste gewonnen level komt het niet meer. Met reduced motion
+  wijst het stil naar het vakje waar het heen moet.
+
+Gekozen na een analyse van de game voor kinderen van 4–6: vegen is voor de jongsten lastig
+en tikken deed niets; het startscherm liet niet zien waar je verder moest; en niets op het
+scherm liet zien hoe je beweegt. Bewust niet gedaan: een wereldkaart en kindprofielen (een
+groot nieuw subsysteem of een opslagwijziging).
 
 ### Hints
 

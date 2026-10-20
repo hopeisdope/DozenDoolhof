@@ -53,6 +53,7 @@ from the same state.
   - `state.ts`: types. Posities zijn celindexen (`y * width + x`); `boxes` is altijd
     oplopend gesorteerd.
   - `move.ts`: `tryMove` geeft `null` bij een geblokkeerde zet.
+  - `path.ts`: `walkPath` (kortste looproute zonder duwen, voor tikken) en `directionTo`.
   - `history.ts`: `Game` met undo-geschiedenis. Een geblokkeerde zet, undo zonder historie of
     een herstart van een onaangeraakt level geeft **hetzelfde object** terug (identiteit =
     "niets veranderd"). Herstart is zelf ongedaan te maken.
@@ -78,6 +79,8 @@ from the same state.
   muren en andere bevroren dozen, niet op een doel). Bij twijfel geen melding. Het spelscherm
   rekent alleen opnieuw als de `boxes`-array verandert; de melding (`stuck-notice`) staat
   naast het bord, nooit eroverheen, en verandert de spelstatus niet.
+- `src/render/swipe-demo.ts`: het handje dat nieuwe spelers (nog geen level gehaald) de
+  eerste zet voordoet; `pointer-events: none`, verdwijnt bij elke actie.
 - `src/render/hint-layer.ts`: tekent hints boven het bord (omlijning, doelring, pijl,
   ghost-preview); `pointer-events: none`.
 - `src/render/motion.ts`: leidt kijkrichting, loopanimatie en duwhouding af uit twee
@@ -111,7 +114,7 @@ from the same state.
   het spelscherm, `wardrobe.ts` de kledingkast, `progress.ts` de voortgang (sterren per
   level-ID in `localStorage`, versie + migraties, valt terug op geheugen), `stored-record.ts`
   één klein geversioneerd JSON-record dat nooit gooit (voor de kledingkast), `input.ts` swipe
-  (pointer events, één zet per gebaar) en toetsenbord, `icons.ts` gedeelde iconen.
+  (pointer events, één zet per gebaar), tik (hoogstens 8 px beweging) en toetsenbord, `icons.ts` gedeelde iconen.
 
 Houd de engine vrij van DOM-code; de weergave mag later vervangen worden (bijvoorbeeld door
 Canvas) zonder de regels te raken.
