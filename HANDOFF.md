@@ -4,37 +4,34 @@ Concise state for reloading into a fresh session. Details are in `WORKLIST.md`.
 
 ## State
 
-- Fase 6 klaar op branch `phase-6-deadlock-detection` (gemerged naar `main`; zie de
-  git-log). Wacht op beoordeling door de gebruiker; niet aan fase 7 beginnen.
-- Detectie: `src/solver/deadlock.ts`, `findStuckBoxes(level, state)` → `{ cell, reason }[]`
-  met `reason` `dead-cell` (hergebruikt `liveCells` van de oplosser, per level gecachet) of
-  `frozen` (doos op geen enkele as meer te duwen door muren, andere bevroren dozen of omdat
-  elke duw op een dode cel eindigt; standaard freeze-deadlock, dozen op het pad tellen als
-  muur). Dozen op een doel worden nooit gemarkeerd. Al het andere: geen melding.
-- Spelscherm (`src/ui/game-screen.ts`): `updateStuck()` draait alleen als
-  `state.boxes` een andere array is (duw, undo/herstart daarvan, levelwissel). Doos krijgt
-  `is-stuck`/`data-stuck` en een slotjesbadge (`src/assets/pieces/stuck-badge.svg`) plus
-  wiebel; melding `data-testid="stuck-notice"` met "Eén zet terug" en "Opnieuw proberen"
-  (bestaande undo/restart).
-- Melding staat in een eigen gridrij onder het bord (staand) of in de HUD-kolom (liggend,
-  `max-height: 540px`), nooit over het bord; het bord krimpt alleen als er geen ruimte over is.
-- Hintknop met een vastgelopen doos: geen zoektocht, maar de melding en de doos wiebelen
-  opnieuw (`is-nudged`). Zo verschijnt "Zo lukt het niet meer" nooit tegelijk.
-- Validatie: `tests/solver/deadlock.test.ts` verkent tot 4000 bereikbare standen per level
-  (alle 120) en controleert elke melding onafhankelijk (dode cel: losse-doos-BFS; bevroren:
-  oplosser zegt `unsolvable`); geen melding langs de bekende oplossingen.
+- Fase 7 klaar op branch `phase-7-character-rewards` (gemerged naar `main`; zie de git-log).
+  Wacht op beoordeling door de gebruiker.
+- Beloningen: `src/rewards/catalog.ts` (16 spulletjes in 4 slots: helm, shirt, sticker,
+  gereedschap; per slot één `start`-item = `DEFAULT_OUTFIT`), `rewards.ts` (`Rewards`:
+  ontgrendeling afgeleid uit `Progress`, `recordWin()` vervangt `progress.complete()` in het
+  spelscherm en geeft nieuwe beloningen terug, trekt ze aan en markeert ze als gezien),
+  `wardrobe.ts` (gekozen outfit + gezien, `dozendoolhof.wardrobe` v1, via
+  `src/ui/stored-record.ts`).
+- Weergave: `src/render/hero.ts` maakt de SVG van het bouwvakkertje met outfit (palette-swap
+  van helm/shirt, stickers in `hero__deco`, gereedschap in `hero__tool` in de idle-armen, dus
+  weg tijdens duwen; unieke gradient-ID's per kopie). Bord en hint-ghost dragen de outfit;
+  `data-outfit` op de speler is de testhook.
+- UI: `src/ui/wardrobe.ts` (kledingkast; Escape/levelsknop terug), kledingkastknop met teller
+  op het startscherm (staand onderaan links, liggend in een eigen kolom rechts), beloning op
+  de "Gelukt!"-kaart (liggend in een tweede kolom; sterren liggend kleiner zodat ze in beeld
+  blijven).
 
 ## Watch out for
 
-- De bestaande e2e-test "a stuck board gets a friendly notice" gebruikt nu easy-31 na één duw
-  naar rechts (onoplosbaar zonder bewezen patroon), omdat de oude stand (easy-01, `drrU`) nu
-  door de slotjesmelding wordt afgehandeld.
+- Unlocks worden niet opgeslagen: voortgang wissen zet alles weer op slot; de kast-sleutel
+  wordt dan ook gewist. Een gekozen maar vergrendeld item valt terug op de standaard.
+- `player.svg`: de kleuren van de gele helm en het oranje shirt worden door `hero.ts`
+  vervangen; gebruik die hexwaarden nergens anders in het bestand (getest).
+- Lokale e2e hergebruikt een draaiende `vite preview` op poort 4173 (`reuseExistingServer`);
+  stop die eerst, anders test je een oude build.
 - Bedieningsknoppen schalen met `clamp(62px, 19vw, 76px)` (liggend: `20vh`).
-- Ghost-animatie gebruikt de Web Animations API; met reduced motion staat de ghost stil.
-  Reduced motion zet ook badge-, wiebel- en meldinganimaties uit.
-- Worker wordt als iife gebouwd en met `type: 'module'` gestart (iOS 15+).
-- Alleen getest in Chromium met mobiele emulatie, niet op iOS/WebKit. De melding gebruikt
-  `:has()` voor de gridrij (Safari 15.4+).
+- Alleen getest in Chromium met mobiele emulatie, niet op iOS/WebKit. Melding gebruikt
+  `:has()` (Safari 15.4+); de winkaart liggend ook.
 - easy-10 en easy-14 hebben dezelfde oplossing (gespiegeld); bewuste uitzondering in de test.
 - Vite-`base` is `/DozenDoolhof/` (hoofdlettergevoelig); niet wijzigen.
 - @playwright/test vast op 1.56.1 (aanwezige Chromium), TypeScript op 6.0.x.

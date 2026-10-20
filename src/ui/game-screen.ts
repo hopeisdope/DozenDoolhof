@@ -14,15 +14,19 @@ import { createWorkerSolver } from '../hints/worker-solver';
 import type { Tier } from '../levels/definitions';
 import { BoardView } from '../render/board';
 import { findStuckBoxes } from '../solver/deadlock';
+import { heroMarkup, itemIcon } from '../render/hero';
 import { HintLayer } from '../render/hint-layer';
+import type { RewardItem } from '../rewards/catalog';
+import type { Rewards } from '../rewards/rewards';
 import { ICONS, icon, iconButton, starRow } from './icons';
 import { bindKeyboard, bindSwipe } from './input';
-import { starsFor, type Progress, type Stars } from './progress';
+import { starsFor, type Stars } from './progress';
 
 /**
  * The play screen: HUD, board, level/undo/restart/hint controls, the "stuck box" notice
- * and the "level complete" overlay. Owns the current `Game` and re-renders after every change. One instance
- * is reused for every level; `open()` switches levels.
+ * and the "level complete" overlay (with any reward the win unlocked). Owns the current
+ * `Game` and re-renders after every change. One instance is reused for every level;
+ * `open()` switches levels.
  */
 export class GameScreen {
   readonly element = document.createElement('section');
@@ -40,6 +44,7 @@ export class GameScreen {
   private readonly undoButton = iconButton('button--undo', 'Ongedaan maken', ICONS.undo);
   private readonly restartButton = iconButton('button--restart', 'Opnieuw beginnen', ICONS.restart);
   private readonly overlay = document.createElement('div');
+  private readonly reward = document.createElement('div');
   private readonly nextButton = iconButton('button--next', 'Volgende level', ICONS.next);
   private readonly hintButton = iconButton('button--hint', 'Hint', ICONS.hint);
   private readonly hintClose = iconButton('button--hint-close', 'Hint sluiten', ICONS.close);
@@ -53,12 +58,14 @@ export class GameScreen {
   private stuckCells: readonly number[] = [];
   /** The box array the stuck check last ran on; walking keeps the same array. */
   private checkedBoxes: readonly number[] | null = null;
+  /** Rewards unlocked by winning the current level, shown on the win card. */
+  private newRewards: readonly RewardItem[] = [];
   private readonly hints = new HintController(createWorkerSolver(), (view) =>
     this.renderHint(view),
   );
 
   constructor(
-    private readonly progress: Progress,
+    private readonly rewards: Rewards,
     private readonly onExit: (tier: Tier) => void,
   ) {
     this.element.className = 'screen game';
@@ -88,8 +95,10 @@ export class GameScreen {
     this.tier = tier;
     this.levelIndex = levelIndex;
     this.game = createGame(this.currentLevel);
-    this.board = new BoardView(this.currentLevel);
-    this.hintLayer = new HintLayer(this.currentLevel);
+    const outfit = this.rewards.outfit();
+    this.board = new BoardView(this.currentLevel, outfit);
+    this.hintLayer = new HintLayer(this.currentLevel, outfit);
+    this.newRewards = [];
     this.board.element.append(this.hintLayer.element);
     this.stage.replaceChildren(this.board.element);
     this.hints.setLevel(this.currentLevel, this.tier.definitions[levelIndex]?.solution ?? '');
@@ -184,7 +193,11 @@ export class GameScreen {
         <h2 class="overlay__title" id="win-title">Gelukt!</h2>
         <p class="overlay__moves"></p>
       </div>`;
-    this.overlay.querySelector('.overlay__card')?.append(this.nextButton);
+    this.reward.className = 'overlay__reward';
+    this.reward.dataset.testid = 'win-reward';
+    this.reward.setAttribute('role', 'group');
+    this.reward.hidden = true;
+    this.overlay.querySelector('.overlay__card')?.append(this.reward, this.nextButton);
     this.nextButton.addEventListener('click', () => this.next());
 
     this.element.append(
@@ -286,7 +299,13 @@ export class GameScreen {
   private render(): void {
     const solved = isGameSolved(this.game);
     if (solved) {
-      this.progress.complete(this.currentLevel.id, this.earnedStars);
+      const unlocked = this.rewards.recordWin(this.currentLevel.id, this.earnedStars);
+      if (unlocked.length > 0) {
+        this.newRewards = [...this.newRewards, ...unlocked];
+        // New rewards are put on at once, so the cheering worker already wears them.
+        this.board.setOutfit(this.rewards.outfit());
+        this.renderReward();
+      }
       this.hints.clear();
     }
     this.hintButton.disabled = solved;
@@ -312,6 +331,8 @@ export class GameScreen {
       stars.innerHTML = starRow(earned, starUrl, 3);
     }
 
+    this.reward.hidden = !solved || this.newRewards.length === 0;
+
     if (solved && this.overlay.hidden) {
       const level = this.currentLevel;
       // Let the final push animation finish before celebrating.
@@ -321,6 +342,23 @@ export class GameScreen {
         this.nextButton.focus();
       }, 250);
     }
+  }
+
+  /** The worker in the new outfit, next to a picture of each new item. */
+  private renderReward(): void {
+    const names = this.newRewards.map((item) => item.name).join(', ');
+    this.reward.setAttribute('aria-label', `Nieuw: ${names}`);
+    this.reward.innerHTML = `
+      <div class="hero-preview overlay__hero" aria-hidden="true">${heroMarkup(this.rewards.outfit())}</div>
+      <div class="overlay__new">
+        <span class="overlay__new-label" aria-hidden="true">Nieuw!</span>
+        <span class="overlay__new-items" aria-hidden="true">${this.newRewards
+          .map(
+            (item) =>
+              `<span class="overlay__new-item" data-item="${item.id}">${itemIcon(item)}</span>`,
+          )
+          .join('')}</span>
+      </div>`;
   }
 
   private renderHint(view: HintView): void {

@@ -886,3 +886,280 @@ async function cellColumns(page: Page): Promise<number> {
       .evaluate((el) => getComputedStyle(el).getPropertyValue('--cols')),
   );
 }
+
+const WARDROBE_KEY = 'dozendoolhof.wardrobe';
+const DEFAULT_OUTFIT = 'helmet-yellow shirt-orange sticker-none tool-none';
+const EASY_IDS = TIERS[0]!.definitions.map((definition) => definition.id);
+
+const storageItem = (page: Page, key: string) =>
+  page.evaluate((name) => localStorage.getItem(name), key);
+
+/**
+ * Saved progress as left by earlier play: the first `levels` easy levels (or the given
+ * level ids) with 3 stars, and optionally a saved wardrobe.
+ */
+async function seedProgress(
+  page: Page,
+  levels: number | readonly string[],
+  wardrobe?: unknown,
+): Promise<void> {
+  const ids = typeof levels === 'number' ? EASY_IDS.slice(0, levels) : levels;
+  await page.goto('./');
+  await page.evaluate(
+    ([ids, saved]) => {
+      const bestStars = Object.fromEntries((ids as string[]).map((id) => [id, 3]));
+      localStorage.setItem('dozendoolhof.progress', JSON.stringify({ version: 1, bestStars }));
+      if (saved !== undefined) {
+        const text = typeof saved === 'string' ? saved : JSON.stringify(saved);
+        localStorage.setItem('dozendoolhof.wardrobe', text);
+      }
+    },
+    [ids, wardrobe] as const,
+  );
+  await page.reload();
+}
+
+test.describe('rewards (desktop)', () => {
+  test.skip(({ isMobile }) => isMobile, 'keyboard tests run on the desktop project');
+
+  const reward = (page: Page) => page.getByTestId('win-reward');
+  const wardrobeButton = (page: Page) => page.getByTestId('wardrobe-button');
+  const wardrobeHero = (page: Page) => page.getByTestId('wardrobe-hero');
+
+  test('the first win unlocks a sticker that the worker wears at once', async ({ page }) => {
+    await page.goto(EASY_1);
+    await expect(player(page)).toHaveAttribute('data-outfit', DEFAULT_OUTFIT);
+    await playSolution(page, solutionOf(0, 0));
+    await expect(overlay(page)).toBeVisible();
+    await expect(reward(page)).toBeVisible();
+    await expect(reward(page)).toHaveAccessibleName('Nieuw: Stersticker');
+    await expect(reward(page).locator('[data-item="sticker-star"]')).toHaveCount(1);
+    await expect(player(page)).toHaveAttribute('data-outfit', /sticker-star/);
+    await expect(player(page).locator('.hero__sticker')).toHaveCount(3);
+    // Saved under its own key; the progress format is unchanged.
+    expect(JSON.parse((await storageItem(page, 'dozendoolhof.progress'))!)).toEqual({
+      version: 1,
+      bestStars: { 'easy-01': 3 },
+    });
+    expect(JSON.parse((await storageItem(page, WARDROBE_KEY))!)).toEqual({
+      version: 1,
+      equipped: { sticker: 'sticker-star' },
+      seen: ['sticker-star'],
+    });
+
+    // Still worn in the next level; an ordinary win shows no reward.
+    await page.getByRole('button', { name: 'Volgende level' }).click();
+    await expect(page.getByRole('heading', { name: 'Level 2' })).toBeVisible();
+    await expect(player(page)).toHaveAttribute('data-outfit', /sticker-star/);
+    await playSolution(page, solutionOf(0, 1));
+    await expect(overlay(page)).toBeVisible();
+    await expect(reward(page)).toBeHidden();
+  });
+
+  test('earlier progress unlocks rewards; the wardrobe button counts the new ones', async ({
+    page,
+  }) => {
+    await seedProgress(page, 6);
+    await expect(wardrobeButton(page)).toHaveAccessibleName('Kledingkast, 3 nieuw');
+    await expect(page.getByTestId('wardrobe-new')).toHaveText('3');
+    await wardrobeButton(page).click();
+    await expect(page.getByTestId('wardrobe')).toBeVisible();
+    await expect(page.getByTestId('level-select')).toBeHidden();
+    await expect(page.getByTestId('wardrobe-item')).toHaveCount(16);
+    await expect(page.locator('.item-button.is-new')).toHaveCount(3);
+    await expect(page.locator('.item-button[aria-disabled="true"]')).toHaveCount(9);
+    await expect(page.getByRole('button', { name: 'Rode helm, nieuw' })).toBeVisible();
+    for (const name of [
+      'Blauwe helm, op slot: nog 10 levels',
+      'Gouden helm, op slot: alle levels van Gemiddeld',
+      'Roze shirt, op slot: nog 82 sterren',
+    ]) {
+      await expect(page.getByRole('button', { name })).toBeVisible();
+    }
+    // Nothing was put on by itself, and the progress is untouched.
+    await expect(wardrobeHero(page)).toHaveAttribute('data-outfit', DEFAULT_OUTFIT);
+    const progress = JSON.parse((await storageItem(page, 'dozendoolhof.progress'))!);
+    expect(Object.keys(progress.bestStars)).toHaveLength(6);
+
+    await page.getByRole('button', { name: 'Naar de levels' }).click();
+    await expect(page.getByTestId('level-select')).toBeVisible();
+    await expect(wardrobeButton(page)).toBeFocused();
+    await expect(wardrobeButton(page)).toHaveAccessibleName('Kledingkast');
+    await expect(page.getByTestId('wardrobe-new')).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId('wardrobe-new')).toHaveCount(0);
+  });
+
+  test('a chosen item dresses the worker in every level and survives a reload', async ({
+    page,
+  }) => {
+    await seedProgress(page, 3);
+    await wardrobeButton(page).click();
+    const red = page.getByRole('button', { name: /^Rode helm/ });
+    const yellow = page.getByRole('button', { name: 'Gele helm' });
+    await expect(yellow).toHaveAttribute('aria-pressed', 'true');
+    await red.click();
+    await expect(red).toHaveAttribute('aria-pressed', 'true');
+    await expect(yellow).toHaveAttribute('aria-pressed', 'false');
+    await expect(wardrobeHero(page)).toHaveAttribute('data-outfit', /^helmet-red /);
+
+    // A locked item cannot be put on.
+    const blue = page.getByRole('button', { name: /^Blauwe helm/ });
+    await blue.click({ force: true });
+    await expect(blue).toHaveAttribute('aria-pressed', 'false');
+    await expect(red).toHaveAttribute('aria-pressed', 'true');
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('level-select')).toBeVisible();
+    await page.getByTestId('level-button').first().click();
+    await expect(player(page)).toHaveAttribute(
+      'data-outfit',
+      'helmet-red shirt-orange sticker-none tool-none',
+    );
+    await page.goto('./?tier=hard&level=1');
+    await expect(player(page)).toHaveAttribute('data-outfit', /^helmet-red /);
+    await page.reload();
+    await expect(player(page)).toHaveAttribute('data-outfit', /^helmet-red /);
+    // The hint's see-through worker wears the same.
+    for (let stage = 1; stage <= 3; stage++) await page.getByTestId('hint-button').click();
+    await expect(page.getByTestId('hint-ghost-player').locator('svg.hero')).toHaveCount(1);
+    expect(
+      await page
+        .getByTestId('hint-ghost-player')
+        .evaluate((ghost) => ghost.innerHTML.includes('#f24a32')),
+    ).toBe(true);
+  });
+
+  test('wiping progress also wipes the wardrobe', async ({ page }) => {
+    await seedProgress(page, 3, {
+      version: 1,
+      equipped: { helmet: 'helmet-red' },
+      seen: ['helmet-red'],
+    });
+    await expect(wardrobeButton(page)).toHaveAccessibleName('Kledingkast, 1 nieuw');
+    await page.getByRole('button', { name: 'Voortgang wissen' }).click();
+    await page.getByRole('button', { name: 'Ja, alles wissen' }).click();
+    expect(await storageItem(page, WARDROBE_KEY)).toBeNull();
+    expect(await storageItem(page, 'dozendoolhof.progress')).toBeNull();
+    await expect(wardrobeButton(page)).toHaveAccessibleName('Kledingkast');
+    await wardrobeButton(page).click();
+    await expect(wardrobeHero(page)).toHaveAttribute('data-outfit', DEFAULT_OUTFIT);
+    await expect(page.locator('.item-button[aria-disabled="true"]')).toHaveCount(12);
+  });
+
+  test('damaged or impossible wardrobe data does not break the game', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await seedProgress(page, 3, '{"version":1,"equipped":{"helm');
+    await wardrobeButton(page).click();
+    await expect(wardrobeHero(page)).toHaveAttribute('data-outfit', DEFAULT_OUTFIT);
+    await page.getByRole('button', { name: /^Rode helm/ }).click();
+    await page.goto(EASY_1);
+    await expect(player(page)).toHaveAttribute('data-outfit', /^helmet-red /);
+
+    // A locked item in storage (edited by hand): the worker wears the default instead.
+    await seedProgress(page, 0, { version: 1, equipped: { helmet: 'helmet-gold' }, seen: [] });
+    await page.goto(EASY_1);
+    await expect(player(page)).toHaveAttribute('data-outfit', DEFAULT_OUTFIT);
+    await playSolution(page, solutionOf(0, 0));
+    await expect(overlay(page)).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('rewards on every screen', () => {
+  const noPageScroll = async (page: Page) => {
+    const viewport = page.viewportSize()!;
+    const scroll = await page.evaluate(() => ({
+      y: window.scrollY,
+      height: document.documentElement.scrollHeight,
+      width: document.documentElement.scrollWidth,
+    }));
+    expect(scroll.y).toBe(0);
+    expect(scroll.height).toBeLessThanOrEqual(viewport.height);
+    expect(scroll.width).toBeLessThanOrEqual(viewport.width);
+  };
+
+  test('the wardrobe button and the wardrobe fit, with finger-sized items', async ({ page }) => {
+    await seedProgress(page, 6);
+    const button = page.getByTestId('wardrobe-button');
+    await expect(button).toBeInViewport({ ratio: 1 });
+    const buttonBox = (await button.boundingBox())!;
+    expect(buttonBox.width).toBeGreaterThanOrEqual(60);
+    // It never covers the tier tabs.
+    for (const tab of await page.getByRole('tab').all()) {
+      const tabBox = (await tab.boundingBox())!;
+      const overlaps =
+        buttonBox.x < tabBox.x + tabBox.width &&
+        tabBox.x < buttonBox.x + buttonBox.width &&
+        buttonBox.y < tabBox.y + tabBox.height &&
+        tabBox.y < buttonBox.y + buttonBox.height;
+      expect(overlaps).toBe(false);
+    }
+
+    await button.click();
+    await expect(page.getByRole('button', { name: 'Naar de levels' })).toBeInViewport({
+      ratio: 1,
+    });
+    const hero = (await page.getByTestId('wardrobe-hero').boundingBox())!;
+    expect(hero.height).toBeGreaterThanOrEqual(80);
+    for (const item of await page.getByTestId('wardrobe-item').all()) {
+      await expect(item).toBeInViewport({ ratio: 1 });
+      const box = (await item.boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(60);
+      expect(box.height).toBeGreaterThanOrEqual(60);
+    }
+    await noPageScroll(page);
+  });
+
+  test('the win card with a new reward fits the screen', async ({ page }) => {
+    await page.goto(EASY_1);
+    await playSolution(page, solutionOf(0, 0));
+    await expect(page.getByTestId('win-reward')).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole('button', { name: 'Volgende level' })).toBeInViewport({
+      ratio: 1,
+    });
+    await expect(page.getByTestId('win-stars')).toBeInViewport({ ratio: 1 });
+    await noPageScroll(page);
+    await page.getByRole('button', { name: 'Volgende level' }).click();
+    await expect(page.getByRole('heading', { name: 'Level 2' })).toBeVisible();
+  });
+
+  test('with reduced motion the reward and the wardrobe stand still', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(EASY_1);
+    await playSolution(page, solutionOf(0, 0));
+    await expect(page.getByTestId('win-reward')).toBeVisible();
+    const animation = (selector: string) =>
+      page.evaluate((s) => getComputedStyle(document.querySelector(s)!).animationName, selector);
+    expect(await animation('.overlay__reward')).toBe('none');
+    expect(await animation('.overlay__hero .hero__body')).toBe('none');
+
+    const easyAndMedium = TIERS.slice(0, 2).flatMap((tier) => tier.levels.map((l) => l.id));
+    await seedProgress(page, easyAndMedium, { version: 1, equipped: { helmet: 'helmet-gold' } });
+    expect(await animation('.button__badge')).toBe('none');
+    await page.getByTestId('wardrobe-button').click();
+    expect(await animation('.wardrobe__hero .hero__body')).toBe('none');
+    expect(await animation('.hero__sparkle')).toBe('none');
+  });
+});
+
+test.describe('wardrobe by touch (mobile emulation)', () => {
+  test.skip(({ isMobile }) => !isMobile, 'touch tests run on the mobile projects');
+
+  test('tapping items dresses the worker; the page never scrolls', async ({ page }) => {
+    await seedProgress(page, 5);
+    await page.getByTestId('wardrobe-button').tap();
+    const hammer = page.getByRole('button', { name: /^Hamer/ });
+    await hammer.tap();
+    await expect(hammer).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('wardrobe-hero')).toHaveAttribute('data-outfit', /tool-hammer/);
+    await page.getByRole('button', { name: /^Schep/ }).tap({ force: true });
+    await expect(hammer).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Naar de levels' }).tap();
+    await expect(page.getByTestId('level-select')).toBeVisible();
+    await page.getByTestId('level-button').first().tap();
+    await expect(player(page)).toHaveAttribute('data-outfit', /tool-hammer/);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+});

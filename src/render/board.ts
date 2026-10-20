@@ -1,5 +1,6 @@
-import heroSvg from '../assets/pieces/player.svg?raw';
 import { toPosition, type Direction, type GameState, type Level } from '../engine/state';
+import { DEFAULT_OUTFIT, outfitKey, type Outfit } from '../rewards/catalog';
+import { heroMarkup } from './hero';
 import { describeMotion } from './motion';
 import { wallLayerSvg } from './walls';
 
@@ -33,7 +34,10 @@ export class BoardView {
   private state: GameState;
   private facing: Direction = 'down';
 
-  constructor(private readonly level: Level) {
+  constructor(
+    private readonly level: Level,
+    outfit: Outfit = DEFAULT_OUTFIT,
+  ) {
     this.element = document.createElement('div');
     this.element.className = 'board';
     this.element.dataset.testid = 'board';
@@ -60,7 +64,7 @@ export class BoardView {
 
     this.boxes = level.start.boxes.map((cell) => ({ element: this.createPiece('box'), cell }));
     this.player = this.createPiece('player');
-    this.player.querySelector('.piece__sprite')?.insertAdjacentHTML('beforeend', heroSvg);
+    this.setOutfit(outfit);
 
     this.state = level.start;
     this.update(level.start, false);
@@ -96,6 +100,13 @@ export class BoardView {
       void this.element.offsetWidth;
       this.element.classList.remove('board--instant');
     }
+  }
+
+  /** Dresses the worker; pose and position stay as they are. Purely cosmetic. */
+  setOutfit(outfit: Outfit): void {
+    const sprite = this.player.querySelector('.piece__sprite');
+    if (sprite) sprite.innerHTML = heroMarkup(outfit);
+    this.player.dataset.outfit = outfitKey(outfit);
   }
 
   /**

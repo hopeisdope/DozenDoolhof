@@ -4,25 +4,28 @@ Een vrolijke, kindvriendelijke Sokoban-achtige puzzelgame voor iPhone en iPad, g
 een kind van zes jaar. Duw de dozen naar de blauwe doelen. Er is geen tijdsdruk en je hoeft
 niet te kunnen lezen om te spelen.
 
-> **Status: fase 6.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
+> **Status: fase 7.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
 > veertig levels, direct te kiezen vanaf het startscherm, zonder tutorial. Glanzende
 > cartoonstijl met een geanimeerd bouwvakkertje. Gehaalde levels en sterren blijven bewaard
 > in de browser (localStorage). Een optionele lampknop geeft hints in drie stapjes. Een doos
 > die echt vastzit krijgt een slotje, met knoppen voor één zet terug en opnieuw proberen.
+> Gehaalde levels leveren helmen, shirts, stickers en gereedschap op voor het bouwvakkertje,
+> te kiezen in de kledingkast.
 
 Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 
 ## Spelen
 
-| Actie            | Touch                                          | Toetsenbord      |
-| ---------------- | ---------------------------------------------- | ---------------- |
-| Lopen / duwen    | Veeg over het speelveld                        | Pijltjestoetsen  |
-| Ongedaan maken   | Knop met de gebogen pijl                       | `z` of Backspace |
-| Opnieuw beginnen | Knop met de ronde pijl (ook ongedaan te maken) | `r`              |
-| Volgende level   | Groene pijlknop na "Gelukt!"                   | Enter            |
-| Naar de levels   | Knop met de vier vakjes                        | Escape           |
-| Hint             | Blauwe knop met het lampje (tik nog eens)      | `h`              |
-| Hint sluiten     | Ronde grijze knop met het kruisje              | Escape           |
+| Actie            | Touch                                           | Toetsenbord      |
+| ---------------- | ----------------------------------------------- | ---------------- |
+| Lopen / duwen    | Veeg over het speelveld                         | Pijltjestoetsen  |
+| Ongedaan maken   | Knop met de gebogen pijl                        | `z` of Backspace |
+| Opnieuw beginnen | Knop met de ronde pijl (ook ongedaan te maken)  | `r`              |
+| Volgende level   | Groene pijlknop na "Gelukt!"                    | Enter            |
+| Naar de levels   | Knop met de vier vakjes                         | Escape           |
+| Hint             | Blauwe knop met het lampje (tik nog eens)       | `h`              |
+| Hint sluiten     | Ronde grijze knop met het kruisje               | Escape           |
+| Kledingkast      | Paarse knop met het bouwvakkertje (startscherm) | Escape = terug   |
 
 Het startscherm toont de drie niveaus en de veertig levels van het gekozen niveau (op een
 telefoon scrolt alleen het levelraster). Een gehaald level krijgt één tot drie sterren: drie
@@ -71,6 +74,43 @@ Een doos op een doel telt nooit als vastgelopen. Ingewikkeldere gevallen (bijvoo
 bouwvakkertje nergens meer achter een doos kan komen) krijgen geen slotje; die vindt de
 hintknop met "Zo lukt het niet meer".
 
+### Beloningen en kledingkast
+
+Gehaalde levels leveren spulletjes op voor het bouwvakkertje. Ze zijn alleen om te zien:
+ze veranderen niets aan de puzzels, zetten, sterren of hints. Er is niets te kopen en je
+kunt niets kwijtraken door te spelen.
+
+- **Direct zichtbaar.** Haalt een winst een nieuw spulletje binnen, dan staat het op de
+  "Gelukt!"-kaart (het bouwvakkertje dat het al draagt, plus een plaatje met "Nieuw!") en
+  trekt het bouwvakkertje het meteen aan, ook op het bord.
+- **Kledingkast.** De paarse knop met het bouwvakkertje onderaan het startscherm (liggend:
+  rechts) opent de kledingkast. Een rood bolletje telt de spulletjes die je nog niet hebt
+  bekeken. Per rij één soort: helmen, shirts, stickers, gereedschap. Tik op een plaatje om
+  het aan te trekken (groen met een witte rand = aan). Wat nog op slot zit is een donker
+  silhouet met een slotje en een balkje dat volloopt naarmate je dichterbij komt. De eerste
+  knop van elke rij is het oorspronkelijke uiterlijk (bij stickers en gereedschap: niets).
+
+| Spulletje      | Hoe je het krijgt             |
+| -------------- | ----------------------------- |
+| Stersticker    | 1 level gehaald               |
+| Rode helm      | 3 levels                      |
+| Hamer          | 5 levels                      |
+| Groen shirt    | 8 levels                      |
+| Hartjessticker | 12 levels                     |
+| Blauwe helm    | 16 levels                     |
+| Moersleutel    | 20 levels                     |
+| Paars shirt    | 25 levels                     |
+| Bloemensticker | 30 levels                     |
+| Schep          | alle levels van Makkelijk     |
+| Roze shirt     | 100 sterren in totaal (bonus) |
+| Gouden helm    | alle levels van Gemiddeld     |
+
+"Levels" telt gehaalde levels over alle niveaus samen. Welke spulletjes vrij zijn wordt niet
+apart opgeslagen maar steeds uitgerekend uit de voortgang; wie al levels had gehaald voor er
+beloningen waren, krijgt ze dus meteen (met het rode bolletje op de kledingkastknop, maar het
+bouwvakkertje trekt ze pas aan als je dat zelf kiest). Nieuwe spulletjes toevoegen: een regel
+in `src/rewards/catalog.ts` en een tekening in `src/render/hero.ts`.
+
 ### Voortgang
 
 De voortgang staat in `localStorage` onder de sleutel `dozendoolhof.progress`, per stabiele
@@ -86,9 +126,21 @@ als lege voortgang. Gegevens van een nieuwere versie worden nooit overschreven. 
 werkende `localStorage` (bijvoorbeeld geblokkeerd) speelt de game gewoon en meldt het
 startscherm dat de voortgang alleen tijdelijk wordt bewaard.
 
-Wissen: de grijze prullenbakknop onderaan het startscherm, met een bevestigingsstap.
-Bekijken of wissen kan ook in DevTools (Application → Local Storage) of in de console met
-`localStorage.getItem('dozendoolhof.progress')` en `localStorage.removeItem('dozendoolhof.progress')`.
+De kledingkast staat apart onder `dozendoolhof.wardrobe`: wat het bouwvakkertje draagt en
+welke beloningen je al hebt gezien.
+
+```json
+{ "version": 1, "equipped": { "helmet": "helmet-red" }, "seen": ["helmet-red", "sticker-star"] }
+```
+
+Ook hier geldt: onbekende of beschadigde gegevens worden overgeslagen. Draagt het
+bouwvakkertje volgens de opslag iets dat (nog) op slot zit, dan krijgt dat onderdeel gewoon
+het oorspronkelijke uiterlijk.
+
+Wissen: de grijze prullenbakknop onderaan het startscherm, met een bevestigingsstap; dat
+wist de voortgang en de kledingkast. Bekijken of wissen kan ook in DevTools (Application →
+Local Storage) of in de console met `localStorage.getItem('dozendoolhof.progress')` en
+`localStorage.removeItem('dozendoolhof.progress')` (en zo ook `dozendoolhof.wardrobe`).
 
 ## Lokaal draaien
 
@@ -129,9 +181,12 @@ src/
   levels/       levelparser, niveaus, leveldefinities per niveau (tiers/), LURD-oplossingen
   solver/       Sokoban-oplosser (valideert levels, meet moeilijkheid, zoekt voor hints)
   hints/        hintkeuze, hintstappen en de oplosser in een Web Worker
+  rewards/      beloningen: catalogus, ontgrendeling uit de voortgang, kledingkast-opslag
   assets/       SVG-artwork: tegels, kisten, bouwvakkertje, UI
-  render/       DOM-weergave van het bord, muur-autotiling, spelerhouding, hintlaag
-  ui/           startscherm, spelscherm, voortgang (localStorage), swipe en toetsenbord
+  render/       DOM-weergave van het bord, muur-autotiling, spelerhouding, hintlaag,
+                bouwvakkertje met outfit
+  ui/           startscherm, spelscherm, kledingkast, voortgang (localStorage), swipe en
+                toetsenbord
   styles/       CSS
   main.ts       startpunt
 tests/
@@ -140,6 +195,8 @@ tests/
   ui/           unit tests voor voortgang (opslag, migratie, beschadigde data)
   solver/       unit tests voor de oplosser
   hints/        unit tests voor hintkeuze en hintstappen
+  rewards/      unit tests voor beloningen, ontgrendeling en kledingkast-opslag
+  render/       unit tests voor muren, spelerhouding en het bouwvakkertje met outfit
   e2e/          Playwright-tests
 ```
 

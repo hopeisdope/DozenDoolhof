@@ -84,9 +84,19 @@ from the same state.
   opeenvolgende spelstatussen (ook bij undo en herstart).
 - `src/assets/`: handgemaakte SVG's. Tegels en kisten zijn CSS-achtergronden; `player.svg`
   wordt inline geladen (`?raw`) zodat CSS de onderdelen kan animeren (`.hero__*`-klassen).
+- `src/rewards/`: cosmetische beloningen. `catalog.ts` (spulletjes per slot met stabiele ID's
+  en ontgrendelvoorwaarde; `DEFAULT_OUTFIT` is de veilige terugval), `rewards.ts` (wat vrij is
+  wordt **afgeleid** uit `Progress`, niet opgeslagen; `recordWin()` geeft nieuwe beloningen
+  terug en trekt ze aan), `wardrobe.ts` (gekozen outfit en "al gezien" onder
+  `dozendoolhof.wardrobe`, versie 1, defensief ingelezen). Beloningen raken spelregels,
+  zetten, sterren en voortgang nooit.
+- `src/render/hero.ts`: het bouwvakkertje met outfit: palette-swap van helm- en shirtkleuren
+  uit `player.svg`, stickers en gereedschap in de lege `hero__deco`/`hero__tool`-groepen, en
+  per kopie unieke gradient-ID's. Ook de plaatjes voor de kledingkast (`itemIcon`).
 - `src/ui/`: `level-select.ts` is het startscherm (niveau en level kiezen), `game-screen.ts`
-  het spelscherm, `progress.ts` de voortgang (sterren per level-ID in `localStorage`, versie +
-  migraties, valt terug op geheugen), `input.ts` swipe
+  het spelscherm, `wardrobe.ts` de kledingkast, `progress.ts` de voortgang (sterren per
+  level-ID in `localStorage`, versie + migraties, valt terug op geheugen), `stored-record.ts`
+  één klein geversioneerd JSON-record dat nooit gooit (voor de kledingkast), `input.ts` swipe
   (pointer events, één zet per gebaar) en toetsenbord, `icons.ts` gedeelde iconen.
 
 Houd de engine vrij van DOM-code; de weergave mag later vervangen worden (bijvoorbeeld door
@@ -140,6 +150,7 @@ npm run format         # Prettier toepassen
 - Een e2e-fout laat een trace achter in `test-results/`: `npx playwright show-trace <pad>/trace.zip`.
   In CI staat het Playwright-rapport als artifact `playwright-report` bij een mislukte run.
 - Een level direct openen: `?tier=easy|medium|hard&level=N` achter de URL.
+- De kledingkast staat onder `dozendoolhof.wardrobe` (wissen gaat samen met de voortgang).
 - Voortgang staat in `localStorage` onder `dozendoolhof.progress`. Bekijken: DevTools →
   Application → Local Storage, of `localStorage.getItem('dozendoolhof.progress')`. Wissen: de
   prullenbakknop op het startscherm of `localStorage.removeItem('dozendoolhof.progress')`.
