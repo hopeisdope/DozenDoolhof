@@ -73,6 +73,11 @@ from the same state.
 - `src/render/walls.ts`: muur-autotiling. Elke muurcel wordt een baksteen waarvan de vorm
   afhangt van de vier buren (voeg naar een muur, dikke contour naar buiten, grote bocht op de
   buitenhoek). Pure functies, getest in `tests/render/`.
+- `src/solver/deadlock.ts`: `findStuckBoxes()` vindt dozen die bewezen nooit meer op een
+  doel komen: dode cellen (`liveCells` van de oplosser) en bevroren dozen (geblokkeerd door
+  muren en andere bevroren dozen, niet op een doel). Bij twijfel geen melding. Het spelscherm
+  rekent alleen opnieuw als de `boxes`-array verandert; de melding (`stuck-notice`) staat
+  naast het bord, nooit eroverheen, en verandert de spelstatus niet.
 - `src/render/hint-layer.ts`: tekent hints boven het bord (omlijning, doelring, pijl,
   ghost-preview); `pointer-events: none`.
 - `src/render/motion.ts`: leidt kijkrichting, loopanimatie en duwhouding af uit twee
@@ -122,7 +127,8 @@ npm run format         # Prettier toepassen
 
 - Elke wijziging aan de spelregels krijgt unit tests in `tests/engine/`.
 - Elke parserwijziging krijgt tests voor geldige en ongeldige input in `tests/levels/`.
-- Nieuwe levels moeten slagen in `tests/levels/definitions.test.ts`.
+- Nieuwe levels moeten slagen in `tests/levels/definitions.test.ts` en in
+  `tests/solver/deadlock.test.ts` (geen vastgelopen-melding op een oplosbare stand).
 - UI-gedrag (spelen, undo/herstart, swipe, layout op mobiele viewports) wordt gedekt in
   `tests/e2e/game.spec.ts`.
 - Voor een commit moeten `npm run check` en `npm run test:e2e` slagen.

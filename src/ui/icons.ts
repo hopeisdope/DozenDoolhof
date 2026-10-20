@@ -10,6 +10,7 @@ export const ICONS = {
   hint:
     '<path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.6.5.8 1 .8 1.7v.5h6V16c0-.7.2-1.2.8-1.7A6.5 6.5 0 0 0 12 2.5z"/>' +
     '<path d="M9.5 19h5"/><path d="M10.5 21.5h3"/>',
+  lock: '<path d="M8 11V8a4 4 0 0 1 8 0v3"/><rect x="5" y="11" width="14" height="10" rx="2.5"/>',
   levels:
     '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/>' +
     '<rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>',

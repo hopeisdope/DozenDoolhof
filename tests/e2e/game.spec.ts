@@ -595,25 +595,29 @@ test.describe('hints while playing (desktop)', () => {
   });
 
   test('a stuck board gets a friendly notice with undo and restart', async ({ page }) => {
-    await page.goto(EASY_1);
-    await playSolution(page, 'drrU'); // the box against the top wall: no way back
-    await expect(moves(page)).toHaveText('Zetten: 4');
+    // easy-31 after one push right: no box is visibly stuck, but the worker can no
+    // longer get behind it. Only the hint search can tell.
+    await page.goto(`./?tier=easy&level=${positionOf('easy-31')}`);
+    await page.keyboard.press('ArrowRight');
+    await expect(moves(page)).toHaveText('Zetten: 1');
+    await expect(page.getByTestId('stuck-notice')).toBeHidden();
     await hintButton(page).click();
     await expect(notice(page)).toBeVisible();
     await expect(notice(page)).toContainText('Zo lukt het niet meer');
     await expect(layer(page)).toBeHidden();
-    await expect(moves(page)).toHaveText('Zetten: 4');
+    await expect(moves(page)).toHaveText('Zetten: 1');
 
     await page.getByRole('button', { name: 'Eén zet terug' }).click();
     await expect(notice(page)).toBeHidden();
-    await expect(moves(page)).toHaveText('Zetten: 3');
+    await expect(moves(page)).toHaveText('Zetten: 0');
 
-    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowRight');
     await hintButton(page).click();
     await expect(notice(page)).toBeVisible();
     await page.getByRole('button', { name: 'Helemaal opnieuw' }).click();
     await expect(notice(page)).toBeHidden();
     await expect(moves(page)).toHaveText('Zetten: 0');
+    await expect(page.getByTestId('stuck-notice')).toBeHidden();
   });
 
   test('h asks for a hint and Escape closes it before leaving the level', async ({ page }) => {
@@ -641,6 +645,200 @@ test.describe('hints by touch (mobile emulation)', () => {
     }
     await page.getByRole('button', { name: 'Hint sluiten' }).tap();
     await expect(page.getByTestId('hint-layer')).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 0');
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+});
+
+test.describe('stuck boxes', () => {
+  const stuckNotice = (page: Page) => page.getByTestId('stuck-notice');
+  const box = (page: Page) => page.getByTestId('box');
+  const hintButton = (page: Page) => page.getByTestId('hint-button');
+  const hintLayer = (page: Page) => page.getByTestId('hint-layer');
+  const hintNotice = (page: Page) => page.getByTestId('hint-notice');
+  /** Level 1 of Makkelijk: round the box and push it against the top wall, a dead edge. */
+  const PUSH_INTO_EDGE = 'drrU';
+
+  test('a box pushed against a wall without a goal is marked at once', async ({ page }) => {
+    await page.goto(EASY_1);
+    await playSolution(page, 'drr');
+    await expect(box(page)).toHaveAttribute('data-stuck', 'false');
+    await expect(stuckNotice(page)).toBeHidden();
+    await playSolution(page, 'U');
+    await expect(box(page)).toHaveAttribute('data-stuck', 'true');
+    await expect(page.getByTestId('stuck-badge')).toBeVisible();
+    await expect(stuckNotice(page)).toBeVisible();
+    await expect(stuckNotice(page)).toContainText('Deze doos zit vast');
+    await expect(stuckNotice(page)).toHaveAttribute('role', 'status');
+    // A warning, not a hint, and nothing about the game changed.
+    await expect(hintLayer(page)).toBeHidden();
+    await expect(hintNotice(page)).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 4');
+    await expect(page.getByRole('button', { name: 'Ongedaan maken' })).toBeEnabled();
+  });
+
+  test('undo takes the warning away; walking on keeps it', async ({ page }) => {
+    await page.goto(EASY_1);
+    await playSolution(page, PUSH_INTO_EDGE);
+    await expect(stuckNotice(page)).toBeVisible();
+    // Walking around does not free the box, so the warning stays (and does not repeat).
+    await playSolution(page, 'rl');
+    await expect(stuckNotice(page)).toBeVisible();
+    await expect(stuckNotice(page)).toHaveCount(1);
+    await expect(moves(page)).toHaveText('Zetten: 6');
+    await page.keyboard.press('z');
+    await page.keyboard.press('z');
+    await expect(stuckNotice(page)).toBeVisible();
+    await stuckNotice(page).getByRole('button', { name: 'Eén zet terug' }).click();
+    await expect(stuckNotice(page)).toBeHidden();
+    await expect(box(page)).toHaveAttribute('data-stuck', 'false');
+    await expect(moves(page)).toHaveText('Zetten: 3');
+    await expect(box(page)).toHaveAttribute('data-y', '2');
+  });
+
+  test('try again restarts the level, which then plays to a full win', async ({ page }) => {
+    await page.goto(EASY_1);
+    await playSolution(page, PUSH_INTO_EDGE);
+    await stuckNotice(page).getByRole('button', { name: 'Opnieuw proberen' }).click();
+    await expect(stuckNotice(page)).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 0');
+    await expect(box(page)).toHaveAttribute('data-stuck', 'false');
+    // The restart itself can be undone, back to the stuck box and its warning.
+    await page.keyboard.press('z');
+    await expect(stuckNotice(page)).toBeVisible();
+    await expect(moves(page)).toHaveText('Zetten: 4');
+    await page.getByRole('button', { name: 'Opnieuw beginnen' }).click();
+    await expect(stuckNotice(page)).toBeHidden();
+
+    await playSolution(page, solutionOf(0, 0));
+    await expect(overlay(page)).toBeVisible();
+    await expect(page.getByTestId('win-stars')).toHaveAttribute('data-stars', '3');
+    await expect(stuckNotice(page)).toBeHidden();
+    const saved = await page.evaluate(() => localStorage.getItem('dozendoolhof.progress'));
+    expect(JSON.parse(saved!)).toEqual({ version: 1, bestStars: { 'easy-01': 3 } });
+  });
+
+  test('a stuck box saves nothing and costs no stars', async ({ page }) => {
+    await page.goto(EASY_1);
+    await playSolution(page, PUSH_INTO_EDGE);
+    await expect(stuckNotice(page)).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('dozendoolhof.progress'))).toBeNull();
+    // Undo all the way back and win: the stars count only the moves of the final state.
+    for (let i = 0; i < 4; i++) await page.keyboard.press('z');
+    await expect(moves(page)).toHaveText('Zetten: 0');
+    await playSolution(page, solutionOf(0, 0));
+    await expect(page.getByTestId('win-stars')).toHaveAttribute('data-stars', '3');
+  });
+
+  test('a level change leaves no old warning behind', async ({ page }) => {
+    await page.goto(EASY_1);
+    await playSolution(page, PUSH_INTO_EDGE);
+    await expect(stuckNotice(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Naar de levels' }).click();
+    await page.getByRole('button', { name: 'Level 1, Makkelijk' }).click();
+    await expect(moves(page)).toHaveText('Zetten: 0');
+    await expect(stuckNotice(page)).toBeHidden();
+    await expect(box(page)).toHaveAttribute('data-stuck', 'false');
+
+    await playSolution(page, PUSH_INTO_EDGE);
+    await expect(stuckNotice(page)).toBeVisible();
+    await page.getByRole('button', { name: 'Naar de levels' }).click();
+    await page.getByRole('button', { name: 'Level 2, Makkelijk' }).click();
+    await expect(page.getByRole('heading', { name: 'Level 2' })).toBeVisible();
+    await expect(stuckNotice(page)).toBeHidden();
+    await expect(page.locator('[data-stuck="true"]')).toHaveCount(0);
+  });
+
+  test('the hint button points at the stuck box instead of a second message', async ({ page }) => {
+    await page.goto(EASY_1);
+    // A hint that is showing disappears when the box gets stuck.
+    await hintButton(page).click();
+    await expect(hintLayer(page)).toHaveAttribute('data-stage', '1');
+    await playSolution(page, PUSH_INTO_EDGE);
+    await expect(hintLayer(page)).toBeHidden();
+    await expect(stuckNotice(page)).toBeVisible();
+
+    await hintButton(page).click();
+    await expect(stuckNotice(page)).toHaveClass(/is-nudged/);
+    await expect(hintNotice(page)).toBeHidden();
+    await expect(hintLayer(page)).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 4');
+
+    // After undo the hints work as before: ask, close, ask again.
+    await stuckNotice(page).getByRole('button', { name: 'Eén zet terug' }).click();
+    await hintButton(page).click();
+    await expect(hintLayer(page)).toHaveAttribute('data-stage', '1');
+    await page.getByRole('button', { name: 'Hint sluiten' }).click();
+    await expect(hintLayer(page)).toBeHidden();
+    await hintButton(page).click();
+    await expect(hintLayer(page)).toHaveAttribute('data-stage', '1');
+    await expect(stuckNotice(page)).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 3');
+  });
+
+  test('the warning fits beside the board with finger-sized buttons', async ({ page }) => {
+    await page.goto(EASY_1);
+    await playSolution(page, PUSH_INTO_EDGE);
+    await expect(stuckNotice(page)).toBeInViewport({ ratio: 1 });
+    const viewport = page.viewportSize()!;
+    const board = (await page.getByTestId('board').boundingBox())!;
+    const notice = (await stuckNotice(page).boundingBox())!;
+    const overlaps =
+      notice.x < board.x + board.width &&
+      board.x < notice.x + notice.width &&
+      notice.y < board.y + board.height &&
+      board.y < notice.y + notice.height;
+    expect(overlaps).toBe(false);
+    expect(board.y + board.height).toBeLessThanOrEqual(viewport.height + 0.5);
+    for (const name of ['Eén zet terug', 'Opnieuw proberen']) {
+      const button = stuckNotice(page).getByRole('button', { name });
+      await expect(button).toBeInViewport({ ratio: 1 });
+      const size = (await button.boundingBox())!;
+      expect(size.width).toBeGreaterThanOrEqual(60);
+      expect(size.height).toBeGreaterThanOrEqual(60);
+    }
+    for (const name of ['Ongedaan maken', 'Opnieuw beginnen', 'Hint']) {
+      await expect(page.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 });
+    }
+    const scroll = await page.evaluate(() => ({
+      y: window.scrollY,
+      height: document.documentElement.scrollHeight,
+      width: document.documentElement.scrollWidth,
+    }));
+    expect(scroll.y).toBe(0);
+    expect(scroll.height).toBeLessThanOrEqual(viewport.height);
+    expect(scroll.width).toBeLessThanOrEqual(viewport.width);
+  });
+
+  test('with reduced motion the warning appears without animation', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto(EASY_1);
+    await playSolution(page, PUSH_INTO_EDGE);
+    await expect(stuckNotice(page)).toBeVisible();
+    const animations = await page.evaluate(() =>
+      ['.stuck-notice', '.piece__stuck', '.piece--box .piece__sprite'].map(
+        (selector) => getComputedStyle(document.querySelector(selector)!).animationName,
+      ),
+    );
+    expect(animations).toEqual(['none', 'none', 'none']);
+  });
+});
+
+test.describe('stuck boxes by touch (mobile emulation)', () => {
+  test.skip(({ isMobile }) => !isMobile, 'touch tests run on the mobile projects');
+
+  test('tapping the warning buttons undoes and restarts', async ({ page }) => {
+    await page.goto(EASY_1);
+    await playSolution(page, 'drrU');
+    const notice = page.getByTestId('stuck-notice');
+    await expect(notice).toBeVisible();
+    await notice.getByRole('button', { name: 'Eén zet terug' }).tap();
+    await expect(notice).toBeHidden();
+    await expect(moves(page)).toHaveText('Zetten: 3');
+    await page.keyboard.press('ArrowUp');
+    await expect(notice).toBeVisible();
+    await notice.getByRole('button', { name: 'Opnieuw proberen' }).tap();
+    await expect(notice).toBeHidden();
     await expect(moves(page)).toHaveText('Zetten: 0');
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
   });

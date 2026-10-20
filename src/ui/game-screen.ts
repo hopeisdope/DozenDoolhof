@@ -13,14 +13,15 @@ import { HintController, type HintView } from '../hints/controller';
 import { createWorkerSolver } from '../hints/worker-solver';
 import type { Tier } from '../levels/definitions';
 import { BoardView } from '../render/board';
+import { findStuckBoxes } from '../solver/deadlock';
 import { HintLayer } from '../render/hint-layer';
 import { ICONS, icon, iconButton, starRow } from './icons';
 import { bindKeyboard, bindSwipe } from './input';
 import { starsFor, type Progress, type Stars } from './progress';
 
 /**
- * The play screen: HUD, board, level/undo/restart/hint controls and the "level complete"
- * overlay. Owns the current `Game` and re-renders after every change. One instance
+ * The play screen: HUD, board, level/undo/restart/hint controls, the "stuck box" notice
+ * and the "level complete" overlay. Owns the current `Game` and re-renders after every change. One instance
  * is reused for every level; `open()` switches levels.
  */
 export class GameScreen {
@@ -45,6 +46,13 @@ export class GameScreen {
   private readonly hintNotice = document.createElement('div');
   private readonly noticeUndo = iconButton('button--small', 'Eén zet terug', ICONS.undo);
   private readonly noticeRestart = iconButton('button--small', 'Helemaal opnieuw', ICONS.restart);
+  private readonly stuckNotice = document.createElement('div');
+  private readonly stuckUndo = iconButton('button--small', 'Eén zet terug', ICONS.undo);
+  private readonly stuckRestart = iconButton('button--small', 'Opnieuw proberen', ICONS.restart);
+  /** Boxes that can provably never reach a goal in the current state. */
+  private stuckCells: readonly number[] = [];
+  /** The box array the stuck check last ran on; walking keeps the same array. */
+  private checkedBoxes: readonly number[] | null = null;
   private readonly hints = new HintController(createWorkerSolver(), (view) =>
     this.renderHint(view),
   );
@@ -86,6 +94,8 @@ export class GameScreen {
     this.stage.replaceChildren(this.board.element);
     this.hints.setLevel(this.currentLevel, this.tier.definitions[levelIndex]?.solution ?? '');
     this.renderHint(this.hints.view);
+    this.checkedBoxes = null;
+    this.updateStuck();
     this.title.textContent = `Level ${levelIndex + 1}`;
     this.title.title = this.currentLevel.name;
     this.tierBadge.className = `hud__tier hud__tier--${tier.id}`;
@@ -146,6 +156,22 @@ export class GameScreen {
     this.noticeUndo.addEventListener('click', () => this.undo());
     this.noticeRestart.addEventListener('click', () => this.restart());
 
+    // Shares the notice layout with the hint notice, but warm-coloured with a padlock, so
+    // a stuck box never looks like a hint. It sits beside the board, never on top of it.
+    this.stuckNotice.className = 'hint-notice stuck-notice';
+    this.stuckNotice.dataset.testid = 'stuck-notice';
+    this.stuckNotice.hidden = true;
+    this.stuckNotice.setAttribute('role', 'status');
+    this.stuckNotice.innerHTML = `<span class="hint-notice__icon">${icon(ICONS.lock)}</span>
+      <p class="hint-notice__text"></p><div class="hint-notice__buttons"></div>`;
+    this.stuckNotice
+      .querySelector('.hint-notice__buttons')
+      ?.append(this.stuckUndo, this.stuckRestart);
+    this.stuckUndo.dataset.testid = 'stuck-undo';
+    this.stuckRestart.dataset.testid = 'stuck-restart';
+    this.stuckUndo.addEventListener('click', () => this.undo());
+    this.stuckRestart.addEventListener('click', () => this.restart());
+
     this.overlay.className = 'overlay';
     this.overlay.dataset.testid = 'win-overlay';
     this.overlay.hidden = true;
@@ -161,7 +187,15 @@ export class GameScreen {
     this.overlay.querySelector('.overlay__card')?.append(this.nextButton);
     this.nextButton.addEventListener('click', () => this.next());
 
-    this.element.append(hud, this.stage, this.hintClose, this.hintNotice, controls, this.overlay);
+    this.element.append(
+      hud,
+      this.stage,
+      this.hintClose,
+      this.hintNotice,
+      this.stuckNotice,
+      controls,
+      this.overlay,
+    );
   }
 
   private move(direction: Direction): void {
@@ -184,9 +218,20 @@ export class GameScreen {
     this.setGame(restart(this.game), false, null);
   }
 
-  /** The hint button: each tap shows a more explicit hint; it never moves anything. */
+  /**
+   * The hint button: each tap shows a more explicit hint; it never moves anything. With a
+   * stuck box on the board, the stuck notice is the help that matters, so it is pointed
+   * out again instead of showing a second "this no longer works" message.
+   */
   private hint(): void {
     if (isGameSolved(this.game)) return;
+    if (this.stuckCells.length > 0) {
+      this.board.wobbleStuck();
+      this.stuckNotice.classList.remove('is-nudged');
+      void this.stuckNotice.offsetWidth;
+      this.stuckNotice.classList.add('is-nudged');
+      return;
+    }
     this.hints.request(this.game.state);
   }
 
@@ -209,7 +254,26 @@ export class GameScreen {
     this.game = game;
     this.board.update(game.state, animate);
     this.hints.update(game.state, direction);
+    this.updateStuck();
     this.render();
+  }
+
+  /**
+   * Looks for stuck boxes when the boxes changed (a push, an undo or restart of one).
+   * Only reads the state; moves, history, stars and progress are untouched.
+   */
+  private updateStuck(): void {
+    const boxes = this.game.state.boxes;
+    if (boxes === this.checkedBoxes) return;
+    this.checkedBoxes = boxes;
+    this.stuckCells = findStuckBoxes(this.currentLevel, this.game.state).map((box) => box.cell);
+    this.board.setStuck(this.stuckCells);
+
+    const count = this.stuckCells.length;
+    this.stuckNotice.hidden = count === 0;
+    this.stuckNotice.classList.remove('is-nudged');
+    const text = this.stuckNotice.querySelector('.hint-notice__text');
+    if (text) text.textContent = count > 1 ? 'Deze dozen zitten vast' : 'Deze doos zit vast';
   }
 
   /** Stars for the current win, measured against the level's known solution. */
@@ -229,6 +293,7 @@ export class GameScreen {
 
     this.moves.textContent = `Zetten: ${this.game.state.moves}`;
     this.undoButton.disabled = !canUndo(this.game) || solved;
+    this.stuckUndo.disabled = !canUndo(this.game);
     this.restartButton.disabled = this.game.state === this.currentLevel.start || solved;
     this.board.element.dataset.solved = String(solved);
 
