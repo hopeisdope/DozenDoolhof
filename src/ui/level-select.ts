@@ -19,6 +19,7 @@ export class LevelSelect {
   private readonly notice = document.createElement('p');
   private readonly resetButton = iconButton('button--reset', 'Voortgang wissen', ICONS.trash);
   private readonly wardrobeButton = document.createElement('button');
+  private readonly updateButton = iconButton('button--update', 'Nieuwe versie laden', ICONS.update);
   private readonly confirm = document.createElement('div');
   private readonly confirmYes = iconButton('button--confirm', 'Ja, alles wissen', ICONS.trash);
   private readonly confirmNo = iconButton('button--cancel', 'Niet wissen', ICONS.close);
@@ -76,7 +77,9 @@ export class LevelSelect {
 
     const footer = document.createElement('div');
     footer.className = 'select__footer';
-    footer.append(this.wardrobeButton);
+    this.updateButton.dataset.testid = 'update-button';
+    this.updateButton.hidden = true;
+    footer.append(this.wardrobeButton, this.updateButton);
     if (settingsPanel) footer.append(settingsPanel.button);
     footer.append(this.resetButton);
 
@@ -90,6 +93,18 @@ export class LevelSelect {
     if (index !== this.tierIndex) this.gridWrap.scrollTop = 0;
     this.tierIndex = index;
     this.render();
+  }
+
+  /**
+   * A new version of the game is ready: show a button that switches to it (the page then
+   * reloads; progress stays). Offered only here, never in the middle of a level.
+   */
+  offerUpdate(apply: () => void): void {
+    this.updateButton.hidden = false;
+    this.updateButton.onclick = () => {
+      this.updateButton.disabled = true;
+      apply();
+    };
   }
 
   /** Puts focus back on the wardrobe button, after returning from the wardrobe. */

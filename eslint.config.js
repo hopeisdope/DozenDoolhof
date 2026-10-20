@@ -12,9 +12,15 @@ export default tseslint.config(
     },
   },
   {
-    files: ['*.config.{js,ts}', 'tests/**/*.ts'],
+    files: ['*.config.{js,ts}', 'tests/**/*.ts', 'pwa/**/*.ts', 'scripts/**/*.mjs'],
     languageOptions: {
       globals: { ...globals.node },
+    },
+  },
+  {
+    files: ['pwa/service-worker.js'],
+    languageOptions: {
+      globals: { ...globals.serviceworker },
     },
   },
 );

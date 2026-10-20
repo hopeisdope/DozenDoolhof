@@ -4,6 +4,9 @@ Read at the start of every session; update when something is done or added.
 
 ## Now
 
+- [ ] Gebruiker test fase 9 op een echt toestel: "Zet op beginscherm" op iPhone en iPad,
+      icoon en naam, openen in vliegtuigstand (alle niveaus, hint, kledingkast), en een
+      update na een nieuwe deploy (groene knop op het startscherm)
 - [ ] Gebruiker beoordeelt fase 8 op een echt toestel: klinken de geluidjes prettig (niet
       irritant bij veel lopen), welke Nederlandse stem kiest iOS en is die verstaanbaar, volgt
       het geluid de stil-schakelaar, en is de stem standaard aan de goede keuze?
@@ -20,8 +23,6 @@ Read at the start of every session; update when something is done or added.
 ## Next
 
 Gekozen volgorde (projectfases; niet de nummers van de oude featurelijst):
-
-- [ ] Fase 9: PWA en offline spelen
 
 ## Later (nog niet ingepland)
 
@@ -72,5 +73,10 @@ Gekozen volgorde (projectfases; niet de nummers van de oude featurelijst):
       API (alleen Nederlandse stem, alleen bij winst, vastgelopen doos en "zo lukt het niet
       meer"), instellingen Geluiden/Stem apart (`dozendoolhof.settings`), niets vóór het
       eerste gebaar, iOS volgt de stil-schakelaar; overlays respecteren nu reduced motion
+- [x] Fase 9 (branch `phase-9-pwa-offline`): installeerbare PWA (manifest en iconen onder
+      `/DozenDoolhof/`, iconen uit de eigen art), service worker zonder dependency (precache
+      per versie met de exacte buildlijst, navigaties uit de eigen versie, oude cache pas
+      weg na de wissel), update-knop op het startscherm, offline getest (e2e) inclusief hints
+      en voortgang; iOS-beperkingen gedocumenteerd
 - [x] Werkafspraken bijgewerkt (project-start): CLAUDE.md met Session start, "Git: merge to
       main after every commit", End of task en Compact instructions

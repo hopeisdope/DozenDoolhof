@@ -4,14 +4,15 @@ Een vrolijke, kindvriendelijke Sokoban-achtige puzzelgame voor iPhone en iPad, g
 een kind van zes jaar. Duw de dozen naar de blauwe doelen. Er is geen tijdsdruk en je hoeft
 niet te kunnen lezen om te spelen.
 
-> **Status: fase 8.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
+> **Status: fase 9.** 120 levels in drie niveaus (Makkelijk, Gemiddeld, Moeilijk) van elk
 > veertig levels, direct te kiezen vanaf het startscherm, zonder tutorial. Glanzende
 > cartoonstijl met een geanimeerd bouwvakkertje. Gehaalde levels en sterren blijven bewaard
 > in de browser (localStorage). Een optionele lampknop geeft hints in drie stapjes. Een doos
 > die echt vastzit krijgt een slotje, met knoppen voor één zet terug en opnieuw proberen.
 > Gehaalde levels leveren helmen, shirts, stickers en gereedschap op voor het bouwvakkertje,
 > te kiezen in de kledingkast. Korte geluidjes en een vriendelijke stem (beide uit te zetten)
-> helpen kinderen die nog niet lezen.
+> helpen kinderen die nog niet lezen. Te installeren op het beginscherm en na één bezoek
+> volledig offline speelbaar.
 
 Speel online: <https://hopeisdope.github.io/DozenDoolhof/>
 
@@ -143,6 +144,46 @@ Niet automatisch te testen (handmatig op een echt toestel): hoe de geluiden klin
 Nederlandse stem iOS kiest en hoe die klinkt, de stil-schakelaar, en het samenspel met
 VoiceOver (die leest de meldingen zelf ook voor; zet de stem dan uit).
 
+### Installeren en offline spelen
+
+Dozendoolhof is een installeerbare web-app (PWA). Na één bezoek met internet staat alles
+wat de game nodig heeft op het toestel: alle 120 levels, de hints (de oplosser in de Web
+Worker), het slotje bij vastgelopen dozen, beloningen, instellingen en de geluidjes werken
+daarna ook zonder netwerk. Voortgang staat altijd al lokaal.
+
+- **iPhone en iPad.** Open de game in Safari, tik op de deelknop en kies **Zet op
+  beginscherm**. Er komt geen automatische installatievraag; dat doet iOS niet. Vanaf iOS
+  16.4 kan dat ook vanuit andere browsers via hun deelmenu. De app opent daarna zonder
+  adresbalk.
+- **Android, Chrome en Edge op de computer.** Via het menu **App installeren** (of het
+  installatie-icoon in de adresbalk).
+- **Nieuwe versie.** De game kijkt bij het openen (en bij terugkomen naar een open app,
+  hoogstens eens per uur) of er een nieuwe versie is en laadt die op de achtergrond. Op het
+  startscherm verschijnt dan een groene knop met twee draaiende pijlen; een tik herlaadt de
+  game met de nieuwe versie. Zonder tik blijft de oude versie gewoon werken (nooit midden in
+  een level). Voortgang, kledingkast en instellingen blijven bij een update staan.
+
+Hoe het werkt: `pwa/precache.ts` schrijft na elke build `dist/sw.js` met de precieze lijst
+van gebouwde bestanden en een versie (hash van de inhoud). De service worker zet elke
+versie in een eigen cache, in één keer of helemaal niet, en serveert een pagina altijd uit
+de cache van zijn eigen versie, zodat HTML en scripts nooit uit verschillende builds komen.
+Een oude cache verdwijnt pas als de nieuwe versie het overneemt. Alleen eigen bestanden
+onder `/DozenDoolhof/` worden gecachet; de twee grote installatie-iconen niet (die gebruikt
+alleen het installatiescherm, online). Er is geen offline-indicator: offline werkt alles
+hetzelfde, dus een kind heeft er niets aan.
+
+Eerlijke beperkingen (handmatig te testen op een echt toestel; Chromium-emulatie zegt hier
+weinig over):
+
+- Op iOS heeft de app op het beginscherm **eigen opslag**, los van Safari: voortgang die in
+  Safari is gespeeld, staat niet in de app (en andersom).
+- Safari kan gegevens van websites wissen die een week of langer niet zijn gebruikt. Voor
+  apps op het beginscherm geldt dat niet; installeer de game dus als de voortgang ertoe
+  doet.
+- Een stem die online werkt (zoals "Google Nederlands" in Chrome op de computer) zwijgt
+  offline; stemmen op het toestel zelf (zoals op iOS) werken wel.
+- Het eerste bezoek moet online zijn; daarna kan de vliegtuigstand aan.
+
 ### Voortgang
 
 De voortgang staat in `localStorage` onder de sleutel `dozendoolhof.progress`, per stabiele
@@ -188,18 +229,19 @@ getoonde netwerkadres (inclusief `/DozenDoolhof/`).
 
 ## Commando's
 
-| Commando               | Wat het doet                                                      |
-| ---------------------- | ----------------------------------------------------------------- |
-| `npm run dev`          | Vite-ontwikkelserver met hot reload                               |
-| `npm run build`        | Typecheck + productiebuild naar `dist/`                           |
-| `npm run preview`      | De productiebuild lokaal bekijken                                 |
-| `npm run lint`         | ESLint                                                            |
-| `npm run format`       | Prettier formatteert alle bestanden                               |
-| `npm run format:check` | Controleert de opmaak (zoals in CI)                               |
-| `npm run typecheck`    | TypeScript zonder output                                          |
-| `npm test`             | Unit tests (Vitest): spelregels, parser, oplosbaarheid van levels |
-| `npm run test:e2e`     | End-to-endtests (Playwright, Chromium) tegen de productiebuild    |
-| `npm run check`        | Lint, opmaak, typecheck, unit tests en build in één keer          |
+| Commando                        | Wat het doet                                                      |
+| ------------------------------- | ----------------------------------------------------------------- |
+| `npm run dev`                   | Vite-ontwikkelserver met hot reload                               |
+| `npm run build`                 | Typecheck + productiebuild naar `dist/`                           |
+| `npm run preview`               | De productiebuild lokaal bekijken                                 |
+| `npm run lint`                  | ESLint                                                            |
+| `npm run format`                | Prettier formatteert alle bestanden                               |
+| `npm run format:check`          | Controleert de opmaak (zoals in CI)                               |
+| `npm run typecheck`             | TypeScript zonder output                                          |
+| `npm test`                      | Unit tests (Vitest): spelregels, parser, oplosbaarheid van levels |
+| `npm run test:e2e`              | End-to-endtests (Playwright, Chromium) tegen de productiebuild    |
+| `npm run check`                 | Lint, opmaak, typecheck, unit tests en build in één keer          |
+| `node scripts/render-icons.mjs` | App-iconen (`public/icons/`) opnieuw maken uit de SVG-art         |
 
 De e2e-tests draaien in Chromium met desktop-, iPhone SE-, iPhone 15 (liggend)- en
 iPad mini-viewports. Dat is **emulatie in Chromium**, geen test in Safari/WebKit op iOS.
@@ -214,6 +256,7 @@ src/
   solver/       Sokoban-oplosser (valideert levels, meet moeilijkheid, zoekt voor hints)
   hints/        hintkeuze, hintstappen en de oplosser in een Web Worker
   audio/        geluidjes (Web Audio), stem (Web Speech) en wanneer het spel iets laat horen
+  pwa.ts        registratie van de service worker en de update-knop
   rewards/      beloningen: catalogus, ontgrendeling uit de voortgang, kledingkast-opslag
   assets/       SVG-artwork: tegels, kisten, bouwvakkertje, UI
   render/       DOM-weergave van het bord, muur-autotiling, spelerhouding, hintlaag,
@@ -230,8 +273,12 @@ tests/
   hints/        unit tests voor hintkeuze en hintstappen
   rewards/      unit tests voor beloningen, ontgrendeling en kledingkast-opslag
   audio/        unit tests voor geluidjes, stem en wanneer ze klinken
+  pwa/          unit tests voor de precache-lijst en de service worker-build
   render/       unit tests voor muren, spelerhouding en het bouwvakkertje met outfit
   e2e/          Playwright-tests
+pwa/            service worker (sjabloon) en de Vite-plugin die hem met de precache-lijst bouwt
+public/         manifest, app-iconen en favicon
+scripts/        render-icons.mjs: maakt de app-iconen
 ```
 
 ## Levels toevoegen

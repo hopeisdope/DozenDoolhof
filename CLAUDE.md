@@ -97,6 +97,13 @@ from the same state.
   `feedback.ts` (`GameFeedback`: wanneer het spelscherm iets laat horen; `SILENT` als
   standaard). Instellingen in `src/ui/settings.ts` (`dozendoolhof.settings`, v1) en
   `settings-panel.ts`. Spraak alleen bij winst, vastgelopen doos en "zo lukt het niet meer".
+- PWA: `public/manifest.webmanifest` (relatieve paden, dus goed onder `/DozenDoolhof/`),
+  `public/icons/` (gemaakt met `scripts/render-icons.mjs`), `pwa/service-worker.js`
+  (sjabloon: precache per versie, navigaties krijgen de eigen `index.html`, geen
+  `skipWaiting` bij installeren, alleen eigen origin en scope) en `pwa/precache.ts`
+  (Vite-plugin, schrijft na de build `dist/sw.js` met lijst + inhoudshash). `src/pwa.ts`
+  registreert (alleen in productie) en biedt een nieuwe versie aan via de groene knop op het
+  startscherm; herlaadt alleen als een versie een andere vervangt.
 - `src/render/hero.ts`: het bouwvakkertje met outfit: palette-swap van helm- en shirtkleuren
   uit `player.svg`, stickers en gereedschap in de lege `hero__deco`/`hero__tool`-groepen, en
   per kopie unieke gradient-ID's. Ook de plaatjes voor de kledingkast (`itemIcon`).
@@ -159,6 +166,10 @@ npm run format         # Prettier toepassen
 - Een level direct openen: `?tier=easy|medium|hard&level=N` achter de URL.
 - De kledingkast staat onder `dozendoolhof.wardrobe` (wissen gaat samen met de voortgang),
   de geluidsinstellingen onder `dozendoolhof.settings` (blijven staan bij wissen).
+- Service worker: DevTools → Application → Service workers / Cache storage. De e2e-tests
+  draaien tegen de productiebuild, dus met service worker (elke test een verse context).
+  Playwright kan de update-check van `sw.js` niet onderscheppen; de updatetest registreert
+  daarom `sw.js?e2e=next`.
 - Geluid in e2e: luister naar `dozendoolhof:sound`-events op `window`; spraak via een nep
   `speechSynthesis` (zie `listenToAudio` in `tests/e2e/game.spec.ts`).
 - Voortgang staat in `localStorage` onder `dozendoolhof.progress`. Bekijken: DevTools →

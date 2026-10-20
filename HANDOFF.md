@@ -4,8 +4,13 @@ Concise state for reloading into a fresh session. Details are in `WORKLIST.md`.
 
 ## State
 
-- Fase 8 klaar op branch `phase-8-sound-feedback` (gemerged naar `main`; zie de git-log),
-  fase 7 daarvoor. Beide wachten op beoordeling door de gebruiker op een echt toestel.
+- Fase 9 klaar op branch `phase-9-pwa-offline` (gemerged naar `main`; zie de git-log),
+  fases 7 en 8 daarvoor. Alle drie wachten op beoordeling op een echt toestel.
+- PWA: `pwa/precache.ts` (Vite-plugin, `closeBundle`: leest `dist/`, schrijft `sw.js` met
+  lijst + versiehash; `NOT_PRECACHED` = de twee 512-iconen), `pwa/service-worker.js`
+  (sjabloon met `/* inject:… */`-markers), `src/pwa.ts` (registratie alleen in productie;
+  `offerUpdate()` op het startscherm; herlaadt alleen bij vervanging van een controller),
+  `public/manifest.webmanifest`, `public/icons/` (`node scripts/render-icons.mjs`).
 - Geluid: `src/audio/sounds.ts` (recepten per `Cue`, `SoundPlayer` met lazy AudioContext,
   `unlock()` bij elk gebaar via capture-listeners in `main.ts`, voetstappen max ~11/s),
   `speech.ts` (`Speaker`, alleen Nederlandse stem, `say(text, delay)` annuleert het vorige),
@@ -30,6 +35,10 @@ noWayOut/stop` aan). Instellingen: `src/ui/settings.ts` + `settings-panel.ts` (g
 
 ## Watch out for
 
+- Alle e2e-tests draaien met service worker (productiebuild); een verse context per test.
+  Playwright onderschept de update-check van `sw.js` niet: de updatetest registreert
+  `sw.js?e2e=next`. iOS-installatie en offline gebruik op een toestel zijn niet getest.
+- Op iOS deelt de beginscherm-app geen opslag met Safari (voortgang apart).
 - Spraak is in Chromium/CI niet echt te horen (geen Nederlandse stem); e2e vervangt
   `speechSynthesis`. Op iOS zelf testen. VoiceOver en de eigen stem kunnen tegelijk praten.
 - `navigator.audioSession.type = 'ambient'` (Safari 16.4+) laat het geluid de
