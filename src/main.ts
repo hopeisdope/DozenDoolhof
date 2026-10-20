@@ -1,30 +1,49 @@
 import './styles/main.css';
 import { TIERS, type Tier } from './levels/definitions';
+import { Rewards } from './rewards/rewards';
+import { Wardrobe } from './rewards/wardrobe';
 import { GameScreen } from './ui/game-screen';
 import { LevelSelect } from './ui/level-select';
 import { browserStorage, Progress } from './ui/progress';
+import { WardrobeScreen } from './ui/wardrobe';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (!root) throw new Error('Missing #app element');
 
-const progress = new Progress(browserStorage());
+const storage = browserStorage();
+const progress = new Progress(storage);
 if (!progress.persistent) {
   console.warn('Dozendoolhof: localStorage is unavailable; progress is kept in memory only.');
 }
+const rewards = new Rewards(progress, new Wardrobe(storage), TIERS);
 
 function showSelect(tier: Tier): void {
   select.selectTier(Math.max(TIERS.indexOf(tier), 0));
   select.element.hidden = false;
 }
 
-const game = new GameScreen(progress, showSelect);
-const select = new LevelSelect(TIERS, progress, (tierIndex, levelIndex) => {
-  const tier = TIERS[tierIndex];
-  if (!tier) return;
-  select.element.hidden = true;
-  game.open(tier, levelIndex);
+const game = new GameScreen(rewards, showSelect);
+const wardrobe = new WardrobeScreen(rewards, () => {
+  select.render();
+  select.element.hidden = false;
+  select.focusWardrobe();
 });
-root.replaceChildren(select.element, game.element);
+const select = new LevelSelect(
+  TIERS,
+  progress,
+  rewards,
+  (tierIndex, levelIndex) => {
+    const tier = TIERS[tierIndex];
+    if (!tier) return;
+    select.element.hidden = true;
+    game.open(tier, levelIndex);
+  },
+  () => {
+    select.element.hidden = true;
+    wardrobe.open();
+  },
+);
+root.replaceChildren(select.element, game.element, wardrobe.element);
 
 /**
  * `?tier=medium&level=3` opens that level directly (level is 1-based); handy for

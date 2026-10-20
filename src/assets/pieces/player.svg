@@ -5,6 +5,8 @@
       facing left mirrors it in CSS).
     Animated parts: hero__body (bob), hero__leg-a/b (walk), hero__arm (swing),
     hero__arms-idle / hero__arms-push (pose). Light comes from the top-left.
+    Empty hero__deco (helmet) and hero__tool (hand) groups are where src/render/hero.ts
+    puts the wardrobe items; it also swaps the helmet and shirt colours.
     The head groups are scaled up around the neck for chibi proportions.
   -->
   <defs>
@@ -45,6 +47,7 @@
       <path d="M33 59q0-5 5-5h24q5 0 5 5l2 13H31z" fill="url(#hero-shirt)"/>
       <path d="M31 70h38l.5 5q0 4-4 4h-31q-4 0-4-4z" fill="url(#hero-pants)"/>
       <g class="hero__arms--idle">
+        <g class="hero__tool hero__tool--front"/>
         <rect x="25" y="61" width="9" height="12" rx="4.5" fill="url(#hero-skin)"/>
         <circle cx="29.5" cy="74" r="5" fill="url(#hero-skin)"/>
         <ellipse cx="32" cy="60" rx="6.5" ry="6" fill="url(#hero-shirt)"/>
@@ -79,6 +82,7 @@
         <path d="M38.5 19q-4 7-4 16.5M61.5 19q4 7 4 16.5" fill="none" stroke="#e0a000" stroke-width="1.8"/>
         <path d="M25 36q0-4 6-4h38q6 0 6 4t-6 4H31q-6 0-6-4z" fill="#f2b000"/>
         <path d="M33.5 28q2-7.5 9.5-10" fill="none" stroke="#fff8c4" stroke-width="3" stroke-linecap="round"/>
+        <g class="hero__deco hero__deco--front"/>
       </g>
     </g>
 
@@ -95,6 +99,7 @@
       <path d="M33 59q0-5 5-5h24q5 0 5 5l2 13H31z" fill="url(#hero-shirt)"/>
       <path d="M31 70h38l.5 5q0 4-4 4h-31q-4 0-4-4z" fill="url(#hero-pants)"/>
       <g class="hero__arms--idle">
+        <g class="hero__tool hero__tool--back"/>
         <rect x="25" y="61" width="9" height="12" rx="4.5" fill="url(#hero-skin)"/>
         <circle cx="29.5" cy="74" r="5" fill="url(#hero-skin)"/>
         <ellipse cx="32" cy="60" rx="6.5" ry="6" fill="url(#hero-shirt)"/>
@@ -117,6 +122,7 @@
         <path d="M38.5 19q-4 7-4 16.5M61.5 19q4 7 4 16.5" fill="none" stroke="#e0a000" stroke-width="1.8"/>
         <path d="M27 37q0-4 6-4h34q6 0 6 4t-6 4H33q-6 0-6-4z" fill="#f2b000"/>
         <path d="M33.5 28q2-7.5 9.5-10" fill="none" stroke="#fff8c4" stroke-width="3" stroke-linecap="round"/>
+        <g class="hero__deco hero__deco--back"/>
       </g>
     </g>
 
@@ -141,6 +147,7 @@
       <path d="M38 69h25v5q0 5-5 5H43q-5 0-5-5z" fill="url(#hero-pants)"/>
       <g class="hero__arms--idle">
         <g class="hero__arm hero__arm--front">
+          <g class="hero__tool hero__tool--side"/>
           <rect x="46" y="61" width="9" height="12" rx="4.5" fill="url(#hero-skin)"/>
           <circle cx="50.5" cy="74" r="5" fill="url(#hero-skin)"/>
           <ellipse cx="50.5" cy="60" rx="6.5" ry="6" fill="url(#hero-shirt)"/>
@@ -169,6 +176,7 @@
         <path d="M54 17.5v16" stroke="#ffe680" stroke-width="2.2" stroke-linecap="round"/>
         <path d="M30 36q0-4 5-4h43q5 0 5 4t-5 4H35q-5 0-5-4z" fill="#f2b000"/>
         <path d="M37.5 28q2-7.5 9.5-10" fill="none" stroke="#fff8c4" stroke-width="3" stroke-linecap="round"/>
+        <g class="hero__deco hero__deco--side"/>
       </g>
     </g>
   </g>

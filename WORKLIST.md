@@ -4,6 +4,9 @@ Read at the start of every session; update when something is done or added.
 
 ## Now
 
+- [ ] Gebruiker beoordeelt fase 7: beloningen op de "Gelukt!"-kaart en de kledingkast, op
+      iPhone en iPad (vooral: snapt een kind van 4–6 de slotjes en balkjes zonder uitleg, en
+      zijn de mijlpalen niet te ver uit elkaar?)
 - [ ] Gebruiker beoordeelt fase 6: slotje op een vastgelopen doos en de rode melding met
       "één zet terug" en "opnieuw proberen", op iPhone en iPad (vooral: snapt een kind van
       4–6 het slotje, en is het verschil met de blauwe hint duidelijk?)
@@ -15,7 +18,6 @@ Read at the start of every session; update when something is done or added.
 
 Gekozen volgorde (projectfases; niet de nummers van de oude featurelijst):
 
-- [ ] Fase 7: beloningen voor het bouwvakkertje
 - [ ] Fase 8: optionele geluidseffecten en korte gesproken feedback
 - [ ] Fase 9: PWA en offline spelen
 
@@ -57,5 +59,11 @@ Gekozen volgorde (projectfases; niet de nummers van de oude featurelijst):
       (dode cellen en bevroren dozen, alleen bewezen gevallen), slotje op de doos, melding
       naast het bord met undo/opnieuw; hintknop wijst dan naar de melding; geen invloed op
       zetten, sterren of voortgang
+- [x] Fase 7 (branch `phase-7-character-rewards`): beloningen voor het bouwvakkertje (4 helmen,
+      4 shirts, 3 stickers, 3 stuks gereedschap), ontgrendeld door gehaalde levels, een niveau
+      uitspelen of sterren (bonus); afgeleid uit de voortgang, niet apart opgeslagen. Nieuw
+      spulletje staat op de "Gelukt!"-kaart en wordt meteen aangetrokken; kledingkast vanaf het
+      startscherm met teller voor nieuwe spulletjes; keuze bewaard onder
+      `dozendoolhof.wardrobe` (versie 1, defensief ingelezen); wissen wist ook de kast
 - [x] Werkafspraken bijgewerkt (project-start): CLAUDE.md met Session start, "Git: merge to
       main after every commit", End of task en Compact instructions

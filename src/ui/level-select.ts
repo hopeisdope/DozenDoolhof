@@ -1,12 +1,15 @@
 import starUrl from '../assets/ui/star.svg';
 import type { Tier } from '../levels/definitions';
+import { heroMarkup } from '../render/hero';
+import type { Rewards } from '../rewards/rewards';
 import { ICONS, iconButton, starRow } from './icons';
 import type { Progress } from './progress';
 
 /**
  * Start screen: pick a tier (Makkelijk, Gemiddeld, Moeilijk) and one of its levels.
- * Every tier and level is open from the start; there is no tutorial. A muted button
- * below the levels wipes all saved progress after a confirmation.
+ * Every tier and level is open from the start; there is no tutorial. Below the levels,
+ * the worker is the button to the wardrobe (with a count of new rewards), and a
+ * muted button wipes all saved progress and rewards after a confirmation.
  */
 export class LevelSelect {
   readonly element = document.createElement('section');
@@ -15,6 +18,7 @@ export class LevelSelect {
   private readonly gridWrap = document.createElement('div');
   private readonly notice = document.createElement('p');
   private readonly resetButton = iconButton('button--reset', 'Voortgang wissen', ICONS.trash);
+  private readonly wardrobeButton = document.createElement('button');
   private readonly confirm = document.createElement('div');
   private readonly confirmYes = iconButton('button--confirm', 'Ja, alles wissen', ICONS.trash);
   private readonly confirmNo = iconButton('button--cancel', 'Niet wissen', ICONS.close);
@@ -23,7 +27,9 @@ export class LevelSelect {
   constructor(
     private readonly tiers: readonly Tier[],
     private readonly progress: Progress,
+    private readonly rewards: Rewards,
     private readonly onPick: (tierIndex: number, levelIndex: number) => void,
+    private readonly onWardrobe: () => void,
   ) {
     this.element.className = 'screen select';
     this.element.dataset.testid = 'level-select';
@@ -62,7 +68,16 @@ export class LevelSelect {
     this.resetButton.addEventListener('click', () => this.openConfirm());
     this.buildConfirm();
 
-    this.element.append(title, this.notice, tabList, this.gridWrap, this.resetButton, this.confirm);
+    this.wardrobeButton.type = 'button';
+    this.wardrobeButton.className = 'button button--wardrobe';
+    this.wardrobeButton.dataset.testid = 'wardrobe-button';
+    this.wardrobeButton.addEventListener('click', () => this.onWardrobe());
+
+    const footer = document.createElement('div');
+    footer.className = 'select__footer';
+    footer.append(this.wardrobeButton, this.resetButton);
+
+    this.element.append(title, this.notice, tabList, this.gridWrap, footer, this.confirm);
     this.render();
   }
 
@@ -73,8 +88,14 @@ export class LevelSelect {
     this.render();
   }
 
+  /** Puts focus back on the wardrobe button, after returning from the wardrobe. */
+  focusWardrobe(): void {
+    this.wardrobeButton.focus();
+  }
+
   render(): void {
     this.notice.hidden = this.progress.persistent;
+    this.renderWardrobeButton();
     this.tiers.forEach((tier, index) => {
       const tab = this.tabs[index];
       if (!tab) return;
@@ -118,6 +139,21 @@ export class LevelSelect {
     );
   }
 
+  /** The worker as dressed now, and a badge with the number of unseen rewards. */
+  private renderWardrobeButton(): void {
+    const fresh = this.rewards.unseen().length;
+    const label = fresh > 0 ? `Kledingkast, ${fresh} nieuw` : 'Kledingkast';
+    this.wardrobeButton.setAttribute('aria-label', label);
+    this.wardrobeButton.title = label;
+    this.wardrobeButton.innerHTML = `<span class="hero-preview button--wardrobe__hero">${heroMarkup(
+      this.rewards.outfit(),
+    )}</span>${
+      fresh > 0
+        ? `<span class="button__badge" data-testid="wardrobe-new" aria-hidden="true">${fresh}</span>`
+        : ''
+    }`;
+  }
+
   private buildConfirm(): void {
     this.confirm.className = 'overlay';
     this.confirm.dataset.testid = 'reset-confirm';
@@ -128,13 +164,14 @@ export class LevelSelect {
     this.confirm.innerHTML = `
       <div class="overlay__card confirm">
         <h2 class="overlay__title confirm__title" id="reset-title">Alles wissen?</h2>
-        <p class="overlay__moves">Alle sterren en gehaalde levels verdwijnen.</p>
+        <p class="overlay__moves">Alle sterren, gehaalde levels en beloningen verdwijnen.</p>
         <div class="confirm__buttons"></div>
       </div>`;
     this.confirm.querySelector('.confirm__buttons')?.append(this.confirmNo, this.confirmYes);
     this.confirmNo.addEventListener('click', () => this.closeConfirm());
     this.confirmYes.addEventListener('click', () => {
       this.progress.clear();
+      this.rewards.clear();
       this.closeConfirm();
       this.render();
     });

@@ -1,6 +1,7 @@
-import heroSvg from '../assets/pieces/player.svg?raw';
 import { toPosition, type Direction, type GameState, type Level } from '../engine/state';
 import type { HintPlan, HintStage } from '../hints/hint';
+import { DEFAULT_OUTFIT, type Outfit } from '../rewards/catalog';
+import { heroMarkup } from './hero';
 
 /** Milliseconds per step in the stage-3 preview, and the pauses around it. */
 const STEP_MS = 340;
@@ -20,7 +21,10 @@ export class HintLayer {
   readonly element = document.createElement('div');
   private animations: Animation[] = [];
 
-  constructor(private readonly level: Level) {
+  constructor(
+    private readonly level: Level,
+    private readonly outfit: Outfit = DEFAULT_OUTFIT,
+  ) {
     this.element.className = 'hint-layer';
     this.element.dataset.testid = 'hint-layer';
     this.element.hidden = true;
@@ -114,7 +118,9 @@ export class HintLayer {
   private addGhosts(plan: HintPlan, state: GameState): void {
     const player = this.ghost('player');
     player.dataset.facing = plan.direction;
-    player.querySelector('.hint-ghost__sprite')?.insertAdjacentHTML('beforeend', heroSvg);
+    player
+      .querySelector('.hint-ghost__sprite')
+      ?.insertAdjacentHTML('beforeend', heroMarkup(this.outfit));
     const box = this.ghost('box');
 
     const playerCells = [state.player, ...plan.playerRoute];
