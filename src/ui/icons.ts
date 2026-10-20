@@ -20,6 +20,9 @@ export const ICONS = {
     '<path d="M4 5h16v10.5h-8.5L7 19.5v-4H4z"/><path d="M8.5 10.2h.01"/><path d="M12 10.2h.01"/>' +
     '<path d="M15.5 10.2h.01"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  update:
+    '<path d="M19.5 10.5A7.5 7.5 0 0 0 6 6.8L4 9"/><path d="M4 4v5h5"/>' +
+    '<path d="M4.5 13.5A7.5 7.5 0 0 0 18 17.2l2-2.2"/><path d="M20 20v-5h-5"/>',
   levels:
     '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/>' +
     '<rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>',

@@ -1423,3 +1423,205 @@ test.describe('sound settings by touch (mobile emulation)', () => {
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
   });
 });
+
+/** Waits until the service worker has installed and controls the page. */
+async function waitForServiceWorker(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+    if (navigator.serviceWorker.controller) return;
+    await new Promise((resolve) =>
+      navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }),
+    );
+  });
+}
+
+function pngSize(buffer: Buffer): { width: number; height: number } {
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
+test.describe('installable app (desktop)', () => {
+  test.skip(({ isMobile }) => isMobile, 'runs once, on the desktop project');
+
+  test('the build links a manifest and icons under /DozenDoolhof/', async ({ page, request }) => {
+    await page.goto('./');
+    const href = (await page.locator('link[rel="manifest"]').getAttribute('href'))!;
+    expect(href).toBe('/DozenDoolhof/manifest.webmanifest');
+    const manifestUrl = new URL(href, page.url());
+    const manifest = await (await request.get(manifestUrl.href)).json();
+    expect(new URL(manifest.start_url, manifestUrl).pathname).toBe('/DozenDoolhof/');
+    expect(new URL(manifest.scope, manifestUrl).pathname).toBe('/DozenDoolhof/');
+    expect(new URL(manifest.id, manifestUrl).pathname).toBe('/DozenDoolhof/');
+    expect(manifest).toMatchObject({ display: 'standalone', lang: 'nl', name: 'Dozendoolhof' });
+    const sizes: string[] = [];
+    for (const icon of manifest.icons) {
+      const response = await request.get(new URL(icon.src, manifestUrl).href);
+      expect(response.status()).toBe(200);
+      const { width, height } = pngSize(await response.body());
+      expect(`${width}x${height}`).toBe(icon.sizes);
+      sizes.push(`${icon.sizes} ${icon.purpose}`);
+    }
+    expect(sizes).toEqual(['192x192 any', '512x512 any', '512x512 maskable']);
+    const apple = (await page.locator('link[rel="apple-touch-icon"]').getAttribute('href'))!;
+    expect(apple).toBe('/DozenDoolhof/icons/apple-touch-icon.png');
+    const appleIcon = await request.get(new URL(apple, page.url()).href);
+    expect(pngSize(await appleIcon.body())).toEqual({ width: 180, height: 180 });
+  });
+
+  test('the service worker caches exactly the built game files', async ({ page, request }) => {
+    await page.goto('./');
+    const source = await (await request.get('sw.js')).text();
+    const list = JSON.parse(source.match(/const PRECACHE = (\[.*?\]);/)![1]!) as string[];
+    expect(source).toMatch(/const VERSION = "[0-9a-f]{16}";/);
+    const used = await page.evaluate(() =>
+      [...document.querySelectorAll('script[src], link[rel="stylesheet"], link[rel="icon"]')].map(
+        (element) => element.getAttribute('src') ?? element.getAttribute('href') ?? '',
+      ),
+    );
+    for (const url of used) expect(list).toContain(url.replace('/DozenDoolhof/', ''));
+    expect(list).toContain('index.html');
+    expect(list).toContain('manifest.webmanifest');
+    expect(list.filter((path) => /^assets\/solver-worker-.*\.js$/.test(path))).toHaveLength(1);
+    expect(list).not.toContain('sw.js');
+    for (const path of list) {
+      expect(path).not.toMatch(/^(https?:|\/)/);
+      expect((await request.get(path)).status()).toBe(200);
+    }
+  });
+
+  test('a first visit installs quietly: no reload and no update button', async ({ page }) => {
+    let navigations = 0;
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) navigations += 1;
+    });
+    await page.goto('./');
+    await page.evaluate(() => ((window as unknown as { marker: boolean }).marker = true));
+    await waitForServiceWorker(page);
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => (window as unknown as { marker?: boolean }).marker)).toBe(
+      true,
+    );
+    expect(navigations).toBe(1);
+    await expect(page.getByTestId('update-button')).toBeHidden();
+    expect(await page.evaluate(() => caches.keys())).toHaveLength(1);
+  });
+
+  test('a new version waits for a tap on the start screen and keeps progress', async ({ page }) => {
+    await seedProgress(page, 3, { version: 1, equipped: { helmet: 'helmet-red' }, seen: [] });
+    await waitForServiceWorker(page);
+    const [current] = await page.evaluate(() => caches.keys());
+    await page.evaluate(async () => {
+      await caches.open('dozendoolhof-0ld');
+      await caches.open('someone-else');
+    });
+    // Pretend a new version was deployed. A new script URL for the same scope counts as one
+    // for the browser (Playwright cannot intercept the browser's own update check).
+    await page.evaluate(() => navigator.serviceWorker.register('sw.js?e2e=next', { scope: './' }));
+    const update = page.getByTestId('update-button');
+    await expect(update).toBeVisible();
+    await expect(update).toHaveAccessibleName('Nieuwe versie laden');
+    // Until the tap, the old version keeps serving the page.
+    expect(
+      await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL.endsWith('/sw.js')),
+    ).toBe(true);
+
+    await Promise.all([page.waitForEvent('load'), update.click()]);
+    await expect(page.getByTestId('level-select')).toBeVisible();
+    await expect(update).toBeHidden();
+    expect(
+      await page.evaluate(() =>
+        navigator.serviceWorker.controller?.scriptURL.endsWith('?e2e=next'),
+      ),
+    ).toBe(true);
+    // Old game caches are cleared; caches of anything else are left alone.
+    await expect
+      .poll(async () => (await page.evaluate(() => caches.keys())).sort())
+      .toEqual([current, 'someone-else'].sort());
+    await expect(page.getByRole('tab', { name: /Makkelijk/ })).toContainText('3/40');
+    expect(JSON.parse((await storageItem(page, WARDROBE_KEY))!).equipped).toEqual({
+      helmet: 'helmet-red',
+    });
+  });
+});
+
+test.describe('offline play', () => {
+  test('after one online visit the whole game works offline', async ({ page, context }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto('./');
+    await waitForServiceWorker(page);
+    await context.setOffline(true);
+    try {
+      await page.reload();
+      await expect(page.getByTestId('level-select')).toBeVisible();
+      // A level by its link, a hint from the solver worker, stuck-box detection and a win.
+      await page.goto('./?tier=hard&level=10');
+      await expect(page.getByRole('heading', { name: 'Level 10' })).toBeVisible();
+      await page.getByTestId('hint-button').click();
+      await expect(page.getByTestId('hint-layer')).toHaveAttribute('data-stage', '1');
+      await page.goto(EASY_1);
+      await playSolution(page, 'drrU');
+      await expect(page.getByTestId('stuck-notice')).toBeVisible();
+      await page.getByRole('button', { name: 'Opnieuw beginnen' }).click();
+      await playSolution(page, solutionOf(0, 0));
+      await expect(overlay(page)).toBeVisible();
+      await expect(page.getByTestId('win-reward')).toBeVisible();
+      expect(JSON.parse((await storageItem(page, 'dozendoolhof.progress'))!)).toEqual({
+        version: 1,
+        bestStars: { 'easy-01': 3 },
+      });
+      // Rewards and settings too.
+      await page.goto('./');
+      await page.getByTestId('wardrobe-button').click();
+      await expect(page.getByTestId('wardrobe-hero')).toHaveAttribute(
+        'data-outfit',
+        /sticker-star/,
+      );
+      await page.getByRole('button', { name: 'Naar de levels' }).click();
+      await page.getByTestId('settings-button').click();
+      await expect(page.getByRole('switch', { name: 'Geluiden' })).toBeVisible();
+    } finally {
+      await context.setOffline(false);
+    }
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('start screen buttons', () => {
+  test('all footer buttons fit, also with the update button shown', async ({ page }) => {
+    await page.goto('./');
+    await page.evaluate(() => {
+      document.querySelector<HTMLElement>('[data-testid="update-button"]')!.hidden = false;
+    });
+    const buttons = page.locator('.select__footer > button');
+    await expect(buttons).toHaveCount(4);
+    const boxes = [];
+    for (const button of await buttons.all()) {
+      await expect(button).toBeInViewport({ ratio: 1 });
+      const box = (await button.boundingBox())!;
+      expect(box.width).toBeGreaterThanOrEqual(60);
+      expect(box.height).toBeGreaterThanOrEqual(60);
+      boxes.push(box);
+    }
+    const tabs = await Promise.all(
+      (await page.getByRole('tab').all()).map((tab) => tab.boundingBox()),
+    );
+    const all = [...boxes, ...tabs.map((box) => box!)];
+    for (const [i, a] of all.entries()) {
+      for (const b of all.slice(i + 1)) {
+        const overlaps =
+          a.x < b.x + b.width &&
+          b.x < a.x + a.width &&
+          a.y < b.y + b.height &&
+          b.y < a.y + a.height;
+        expect(overlaps).toBe(false);
+      }
+    }
+    const viewport = page.viewportSize()!;
+    const scroll = await page.evaluate(() => ({
+      height: document.documentElement.scrollHeight,
+      width: document.documentElement.scrollWidth,
+    }));
+    expect(scroll.height).toBeLessThanOrEqual(viewport.height);
+    expect(scroll.width).toBeLessThanOrEqual(viewport.width);
+  });
+});

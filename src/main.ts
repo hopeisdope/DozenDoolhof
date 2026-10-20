@@ -3,6 +3,7 @@ import { AudioFeedback } from './audio/feedback';
 import { SoundPlayer } from './audio/sounds';
 import { Speaker } from './audio/speech';
 import { TIERS, type Tier } from './levels/definitions';
+import { registerServiceWorker } from './pwa';
 import { Rewards } from './rewards/rewards';
 import { Wardrobe } from './rewards/wardrobe';
 import { GameScreen } from './ui/game-screen';
@@ -107,3 +108,6 @@ if (tier && Number.isInteger(level) && level >= 1 && level <= tier.levels.length
   select.element.hidden = true;
   game.open(tier, level - 1);
 }
+
+// Offline play: a new version is offered on the start screen, never forced mid-level.
+registerServiceWorker((apply) => select.offerUpdate(apply));
